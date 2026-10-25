@@ -1,0 +1,2189 @@
+<title>Ball Multiplier Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: a workbench. The 9:16 stage (the "phone") owns the left column, the tool panel docks right; on phones they stack. */
+:root {
+  --bg: #eceef2;
+  --surface: #ffffff;
+  --surface-2: #f5f6f8;
+  --ink: #17171c;
+  --muted: #5f6070;
+  --line: #d9dbe3;
+  --steel: #74717d;
+  --accent: #e2392f;
+  --accent-ink: #ffffff;
+  --accent-soft: #fde6e4;
+  --focus: #2156d9;
+  --font-display: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --font-body: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --radius: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111115; --surface: #1a1a20; --surface-2: #222229; --ink: #ececf2; --muted: #a3a3b2;
+    --line: #2e2e37; --steel: #8d8a97; --accent: #ff5747; --accent-ink: #160505; --accent-soft: #3a1a18; --focus: #7aa2ff;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111115; --surface: #1a1a20; --surface-2: #222229; --ink: #ececf2; --muted: #a3a3b2;
+  --line: #2e2e37; --steel: #8d8a97; --accent: #ff5747; --accent-ink: #160505; --accent-soft: #3a1a18; --focus: #7aa2ff;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 14px; line-height: 1.45; }
+* { box-sizing: border-box; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.app {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(340px, 420px); grid-template-rows: auto minmax(0, 1fr);
+  gap: 12px 20px; height: 100%;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 12px;
+}
+.topbar { grid-column: 1 / -1; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.brand-mark { width: 30px; height: 30px; flex: none; }
+.brand h1 { font-family: var(--font-display); font-weight: 800; font-size: 20px; letter-spacing: -0.01em; margin: 0; white-space: nowrap; }
+.brand .scene-name { color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 32ch; }
+.topbar .spacer { flex: 1; }
+
+.stage-col { display: flex; flex-direction: column; align-items: center; gap: 10px; min-height: 0; min-width: 0; }
+.stage-wrap { flex: 1 1 auto; min-height: 0; width: 100%; display: flex; justify-content: center; align-items: flex-start; }
+.stage { position: relative; }
+#stage { display: block; width: 100%; height: 100%; border-radius: 16px; background: #fff; box-shadow: 0 1px 2px rgba(20,20,30,.08), 0 8px 30px rgba(20,20,30,.10); touch-action: none; }
+.stage.editing #stage { box-shadow: 0 0 0 3px var(--focus), 0 8px 30px rgba(20,20,30,.12); cursor: crosshair; }
+.edit-flag { position: absolute; bottom: 10px; left: 50%; white-space: nowrap; transform: translateX(-50%); background: var(--focus); color: #fff; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 99px; pointer-events: none; }
+
+.transport { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 36px; padding: 0 12px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--surface); cursor: pointer; font-weight: 500; white-space: nowrap; }
+.btn:hover { border-color: var(--steel); }
+.btn svg { width: 16px; height: 16px; flex: none; }
+.btn.icon { width: 36px; padding: 0; }
+.btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); min-width: 92px; }
+.btn.rec[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.rec .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
+.btn.rec[aria-pressed="true"] .dot { background: var(--accent-ink); animation: blink 1s steps(2) infinite; }
+.btn[aria-pressed="true"]:not(.rec) { background: var(--focus); border-color: var(--focus); color: #fff; }
+.btn.small { height: 30px; padding: 0 10px; font-size: 13px; }
+.btn.danger { color: var(--accent); }
+.btn:disabled { opacity: .45; cursor: default; }
+@keyframes blink { 50% { opacity: .2; } }
+select.btn { padding: 0 8px; }
+
+.panel { min-height: 0; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.tabs { display: flex; border-bottom: 1px solid var(--line); flex: none; }
+.tabs button { flex: 1; height: 42px; border: 0; background: none; cursor: pointer; font-weight: 600; color: var(--muted); border-bottom: 2px solid transparent; }
+.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.panel-body { overflow: auto; padding: 14px; flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 14px; }
+
+.section-title { font-family: var(--font-display); font-weight: 600; font-size: 15px; margin: 0; }
+.hint { color: var(--muted); font-size: 13px; margin: 0; }
+.eyebrow { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin: 0; }
+
+.tpl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 10px; }
+.tpl { display: flex; flex-direction: column; gap: 6px; padding: 6px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); cursor: pointer; text-align: left; }
+.tpl:hover { border-color: var(--steel); }
+.tpl.current { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.tpl canvas { width: 100%; aspect-ratio: 9 / 16; border-radius: 8px; display: block; background: #fff; }
+.tpl b { font-size: 13px; font-weight: 600; line-height: 1.2; }
+.tpl span { font-size: 12px; color: var(--muted); line-height: 1.3; }
+
+.fields { display: grid; gap: 10px; }
+.field { display: grid; grid-template-columns: 112px minmax(0, 1fr); align-items: center; gap: 8px; }
+.field > label { font-size: 13px; color: var(--muted); }
+.field .ctl { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.field input[type="range"] { flex: 1; min-width: 0; accent-color: var(--accent); }
+.field input[type="number"] { width: 72px; font-family: var(--font-mono); font-size: 12px; }
+.field input[type="number"], .field input[type="text"], .field select, textarea {
+  height: 30px; padding: 0 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); min-width: 0;
+}
+.field input[type="text"], .field select { flex: 1; width: 100%; }
+textarea { height: auto; padding: 8px; width: 100%; font-family: var(--font-mono); font-size: 12px; resize: vertical; }
+.field input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); }
+.swatches { display: flex; flex-wrap: wrap; gap: 5px; }
+.swatch { width: 22px; height: 22px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; padding: 0; position: relative; }
+.swatch[aria-checked="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 2px var(--surface); }
+.swatch input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+
+.add-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px; }
+.add-grid button { justify-content: flex-start; }
+.part-list { display: flex; flex-direction: column; gap: 8px; }
+.part { border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); }
+.part.selected { border-color: var(--focus); box-shadow: 0 0 0 1px var(--focus); }
+.part-head { display: flex; align-items: center; gap: 10px; padding: 8px 10px; cursor: pointer; width: 100%; background: none; border: 0; text-align: left; }
+.part-head .glyph { width: 26px; height: 26px; border-radius: 7px; background: var(--surface); border: 1px solid var(--line); display: grid; place-items: center; flex: none; }
+.part-head .glyph svg { width: 16px; height: 16px; }
+.part-head .txt { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.part-head .txt b { font-weight: 600; font-size: 13px; }
+.part-head .txt span { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.part-head .chev { color: var(--muted); transition: transform .15s; }
+.part.open .chev { transform: rotate(90deg); }
+.part-body { padding: 4px 10px 12px; display: grid; gap: 12px; }
+.part-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.save-row { display: flex; gap: 8px; }
+.save-row input { flex: 1; min-width: 0; height: 36px; padding: 0 10px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface-2); }
+.saved-list { display: flex; flex-direction: column; gap: 6px; }
+.saved { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); }
+.saved .txt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.saved .txt b { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.saved .txt span { font-size: 12px; color: var(--muted); }
+.empty { padding: 14px; border: 1px dashed var(--line); border-radius: 10px; color: var(--muted); font-size: 13px; text-align: center; }
+hr { border: 0; border-top: 1px solid var(--line); margin: 0; width: 100%; }
+
+.toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 14px; border-radius: 12px; display: flex; gap: 12px; align-items: center; font-size: 13px; box-shadow: 0 8px 24px rgba(0,0,0,.25); z-index: 20; max-width: calc(100% - 32px); }
+.toast button { background: none; border: 0; color: var(--accent); font-weight: 700; cursor: pointer; padding: 0; }
+
+@media (max-width: 860px) {
+  html, body { height: auto; }
+  .app { display: block; height: auto; }
+  .topbar { margin-bottom: 12px; }
+  .stage-col { margin-bottom: 14px; }
+  .panel { overflow: visible; }
+  .panel-body { overflow: visible; }
+  .field { grid-template-columns: 100px minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn.rec[aria-pressed="true"] .dot { animation: none; }
+  .part-head .chev { transition: none; }
+}
+</style>
+
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+        <circle cx="16" cy="16" r="14" fill="none" stroke="currentColor" stroke-width="2"/>
+        <circle cx="11" cy="12" r="3.2" fill="#e53935"/><circle cx="20" cy="11" r="3.2" fill="#16b39a"/>
+        <circle cx="13" cy="21" r="3.2" fill="#e055d6"/><circle cx="21" cy="20" r="3.2" fill="#2156d9"/>
+      </svg>
+      <h1>Ball Multiplier Lab</h1>
+      <span class="scene-name" id="sceneName"></span>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn small" id="uiTheme" type="button" title="Switch the app between light and dark">Theme</button>
+  </header>
+
+  <main class="stage-col">
+    <div class="stage-wrap" id="stageWrap">
+      <div class="stage" id="stageBox">
+        <canvas id="stage" width="720" height="1280" aria-label="Simulation stage"></canvas>
+        <div class="edit-flag" id="editFlag" hidden>Drag the dots to move parts</div>
+      </div>
+    </div>
+    <div class="transport" role="toolbar" aria-label="Playback">
+      <button class="btn primary" id="playBtn" type="button"></button>
+      <button class="btn icon" id="restartBtn" type="button" title="Restart (R)" aria-label="Restart"></button>
+      <select class="btn" id="speedSel" title="Playback speed" aria-label="Playback speed">
+        <option value="0.25">0.25&times;</option><option value="0.5">0.5&times;</option><option value="1" selected>1&times;</option><option value="2">2&times;</option><option value="4">4&times;</option>
+      </select>
+      <button class="btn" id="editBtn" type="button" aria-pressed="false" title="Edit layout (E)"></button>
+      <button class="btn rec" id="recBtn" type="button" aria-pressed="false" title="Record the run from the start"><span class="dot"></span><span id="recLabel">Record</span></button>
+      <button class="btn icon" id="soundBtn" type="button" aria-pressed="true" title="Sound" aria-label="Sound"></button>
+      <button class="btn" id="seedBtn" type="button" title="Roll a new random seed"></button>
+    </div>
+  </main>
+
+  <aside class="panel" aria-label="Simulation setup">
+    <div class="tabs" role="tablist">
+      <button role="tab" id="tab-templates" aria-selected="true" data-tab="templates">Templates</button>
+      <button role="tab" id="tab-scene" aria-selected="false" data-tab="scene">Scene</button>
+      <button role="tab" id="tab-parts" aria-selected="false" data-tab="parts">Parts</button>
+      <button role="tab" id="tab-saved" aria-selected="false" data-tab="saved">Saved</button>
+    </div>
+    <div class="panel-body" id="panelBody"></div>
+  </aside>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+'use strict';
+/* ==========================================================================
+   Constants and helpers
+   ========================================================================== */
+const WORLD_W = 540, WORLD_H = 960;
+const CANVAS_W = 720, CANVAS_H = 1280, SCALE = CANVAS_W / WORLD_W;
+const DT = 1 / 240;
+const TAU = Math.PI * 2, DEG = Math.PI / 180;
+const X = '×';
+const DEFAULT_PALETTE = ['#e53935', '#16b39a', '#e055d6', '#2e8b37', '#a99cf0', '#8e4a26', '#2156d9', '#77751a', '#f08a1c', '#19a7d6', '#d81b60', '#8a8f9c'];
+
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+const easeInOut = t => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+const easeIn = t => t * t * t;
+const uid = () => Math.random().toString(36).slice(2, 9);
+const clone = o => JSON.parse(JSON.stringify(o));
+const fmt = n => Math.round(n).toLocaleString('en-US');
+
+function hexToRgb(h) {
+  h = String(h || '#888').replace('#', '');
+  if (h.length === 3) h = h.split('').map(c => c + c).join('');
+  const n = parseInt(h, 16) || 0;
+  return [n >> 16 & 255, n >> 8 & 255, n & 255];
+}
+function shade(hex, amt) {
+  const [r, g, b] = hexToRgb(hex);
+  const f = c => Math.round(amt >= 0 ? c + (255 - c) * amt : c * (1 + amt));
+  return `rgb(${f(r)},${f(g)},${f(b)})`;
+}
+function colorName(hex) {
+  const [r, g, b] = hexToRgb(hex).map(v => v / 255);
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
+  if (d < 0.12) return l > 0.75 ? 'White' : l < 0.2 ? 'Black' : 'Grey';
+  let h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  h = (h * 60 + 360) % 360;
+  if (h < 15 || h >= 340) return 'Red';
+  if (h < 40) return l < 0.4 ? 'Brown' : 'Orange';
+  if (h < 68) return l < 0.35 ? 'Olive' : 'Yellow';
+  if (h < 150) return 'Green';
+  if (h < 185) return 'Teal';
+  if (h < 250) return 'Blue';
+  if (h < 290) return 'Purple';
+  return 'Pink';
+}
+
+/* ==========================================================================
+   Part types: defaults, editor fields and summaries
+   ========================================================================== */
+const N = (k, label, min, max, step = 1) => ({ k, label, t: 'num', min, max, step });
+const S = (k, label, options) => ({ k, label, t: 'sel', options });
+const B = (k, label) => ({ k, label, t: 'bool' });
+const T = (k, label) => ({ k, label, t: 'text' });
+const P = (k, label) => ({ k, label, t: 'pal' });
+const XY = [N('x', 'X', -100, 640), N('y', 'Y', -100, 1060)];
+const LINE = [N('x1', 'Start X', -100, 640), N('y1', 'Start Y', -100, 1060), N('x2', 'End X', -100, 640), N('y2', 'End Y', -100, 1060)];
+const COLOR_MODES = [['keep', 'Keep colour'], ['next', 'Next colour'], ['fixed', 'Set colour'], ['random', 'Random colour']];
+
+const PART_TYPES = {
+  container: {
+    label: 'Circle wall', glyph: 'circle',
+    desc: 'A round wall. Add gaps and spin to make escape rings.',
+    defaults: { x: 270, y: 470, radius: 220, thickness: 3, gaps: 0, gapSize: 40, gapAngle: -90, spin: 0, bounce: 1, onHit: 'none', hitCooldown: 1, growBy: 1.5, burst: true },
+    fields: [...XY, N('radius', 'Radius', 20, 300), N('thickness', 'Thickness', 1, 24), N('gaps', 'Gaps', 0, 8), N('gapSize', 'Gap size (deg)', 4, 150),
+      N('gapAngle', 'Gap angle', -180, 180), N('spin', 'Spin (deg/s)', -360, 360), N('bounce', 'Bounciness', 0, 1.2, 0.01),
+      S('onHit', 'When hit', [['none', 'Nothing'], ['addBall', 'Add a ball'], ['grow', 'Ball grows']]), N('hitCooldown', 'Hit cooldown (s)', 0, 4, 0.05),
+      N('growBy', 'Grow by', 0, 10, 0.1), B('burst', 'Breaks at finale')],
+    summary: c => `r ${c.radius}${c.gaps ? ` · ${c.gaps} gap${c.gaps > 1 ? 's' : ''}` : ''}${c.spin ? ` · spins ${c.spin}°/s` : ''}${c.onHit !== 'none' ? (c.onHit === 'grow' ? ' · grows balls' : ' · adds balls') : ''}`
+  },
+  wall: {
+    label: 'Wall', glyph: 'line',
+    desc: 'A straight bar. Give it spin to make a paddle.',
+    defaults: { x1: 170, y1: 480, x2: 370, y2: 480, thickness: 10, spin: 0, bounce: 0.6, friction: 0.02 },
+    handles: [['x1', 'y1'], ['x2', 'y2'], ['mid']],
+    fields: [...LINE, N('thickness', 'Thickness', 2, 40), N('spin', 'Spin (deg/s)', -720, 720), N('bounce', 'Bounciness', 0, 1.2, 0.01), N('friction', 'Grip', 0, 0.6, 0.01)],
+    summary: c => `${Math.round(Math.hypot(c.x2 - c.x1, c.y2 - c.y1))} long${c.spin ? ` · spins ${c.spin}°/s` : ''}`
+  },
+  spinner: {
+    label: 'Spinner', glyph: 'spinner',
+    desc: 'Rotating bars that bat balls around.',
+    defaults: { x: 270, y: 480, length: 140, bars: 1, speed: 120, thickness: 9, phase: 0, bounce: 0.7 },
+    fields: [...XY, N('length', 'Length', 20, 420), N('bars', 'Bars', 1, 4), N('speed', 'Speed (deg/s)', -720, 720), N('thickness', 'Thickness', 3, 30),
+      N('phase', 'Start angle', 0, 180), N('bounce', 'Bounciness', 0, 1.2, 0.01)],
+    summary: c => `${c.bars} bar${c.bars > 1 ? 's' : ''} · ${c.speed}°/s`
+  },
+  conveyor: {
+    label: 'Conveyor', glyph: 'conveyor',
+    desc: 'A moving belt that carries balls along.',
+    defaults: { x1: 100, y1: 500, x2: 440, y2: 520, speed: 140, thickness: 12, friction: 0.3 },
+    handles: [['x1', 'y1'], ['x2', 'y2'], ['mid']],
+    fields: [...LINE, N('speed', 'Belt speed', -500, 500), N('thickness', 'Thickness', 4, 30), N('friction', 'Grip', 0, 0.8, 0.01)],
+    summary: c => `${Math.abs(c.speed)} px/s ${c.speed >= 0 ? 'to end' : 'to start'}`
+  },
+  crusher: {
+    label: 'Crusher arms', glyph: 'crusher',
+    desc: 'Two arms fold into a box and crush what is inside into new balls.',
+    defaults: { x: 270, y: 470, boxW: 180, boxH: 100, reach: 330, thickness: 11, period: 2.2, phase: 0, factor: 4, colorMode: 'next', color: 0, magnifier: true, label: 'CRUSHER' },
+    fields: [...XY, N('boxW', 'Box width', 40, 320), N('boxH', 'Box height', 24, 220), N('reach', 'Arm length', 60, 520), N('thickness', 'Thickness', 4, 24),
+      N('period', 'Cycle (s)', 0.8, 8, 0.1), N('phase', 'Start offset', 0, 1, 0.01), N('factor', `Balls per crush`, 0, 12),
+      S('colorMode', 'New colour', COLOR_MODES), P('color', 'Set colour'), B('magnifier', 'Zoom on crush'), T('label', 'Arm label')],
+    summary: c => `${X}${c.factor} per crushed ball · every ${c.period}s`
+  },
+  press: {
+    label: 'Press', glyph: 'press',
+    desc: 'A stamp that slams down and splits balls under it.',
+    defaults: { x: 270, y: 380, width: 70, stroke: 90, period: 1.8, phase: 0, factor: 2, colorMode: 'next', color: 0 },
+    fields: [...XY, N('width', 'Width', 20, 240), N('stroke', 'Stroke', 10, 320), N('period', 'Cycle (s)', 0.4, 6, 0.1), N('phase', 'Start offset', 0, 1, 0.01),
+      N('factor', 'Balls per hit', 0, 12), S('colorMode', 'New colour', COLOR_MODES), P('color', 'Set colour')],
+    summary: c => `${X}${c.factor} · every ${c.period}s`
+  },
+  spiral: {
+    label: 'Spiral', glyph: 'spiral',
+    desc: 'A rotating spiral that pumps balls toward its centre through gates.',
+    defaults: { x: 270, y: 560, innerR: 34, pitch: 34, turns: 4, thickness: 5, spin: 150, handed: 1, gates: 2, gateFactor: 2, gateColorMode: 'next', gateColor: 0, bounce: 0.3 },
+    fields: [...XY, N('innerR', 'Inner radius', 10, 140), N('pitch', 'Channel width', 14, 90), N('turns', 'Turns', 1, 9, 0.25), N('thickness', 'Thickness', 2, 14),
+      N('spin', 'Spin (deg/s)', -540, 540), S('handed', 'Winding', [[1, 'Clockwise'], [-1, 'Counter-clockwise']]), N('gates', 'Gates', 0, 10),
+      N('gateFactor', 'Gate multiplier', 0, 10), S('gateColorMode', 'Gate colour', COLOR_MODES), P('gateColor', 'Set colour'), N('bounce', 'Bounciness', 0, 1.2, 0.01)],
+    summary: c => `${c.turns} turns · ${c.gates} gate${c.gates === 1 ? '' : 's'} ${X}${c.gateFactor}`
+  },
+  pegs: {
+    label: 'Peg board', glyph: 'pegs',
+    desc: 'Rows of pegs for Plinko-style drops.',
+    defaults: { x: 270, y: 200, rows: 10, start: 3, spacing: 40, pegR: 5, layout: 'triangle', bounce: 0.5 },
+    fields: [...XY, N('rows', 'Rows', 1, 24), N('start', 'Pegs in top row', 1, 14), N('spacing', 'Spacing', 14, 90), N('pegR', 'Peg size', 2, 16),
+      S('layout', 'Layout', [['triangle', 'Triangle'], ['grid', 'Staggered grid']]), N('bounce', 'Bounciness', 0, 1.2, 0.01)],
+    summary: c => `${c.rows} rows · ${c.layout}`
+  },
+  slots: {
+    label: 'Multiplier slots', glyph: 'slots',
+    desc: 'Bins along the bottom. Each one multiplies the balls that land in it.',
+    defaults: { x: 270, y: 860, width: 480, height: 90, multipliers: '3,0,2,1,2,0,3', thickness: 6, colorMode: 'slot', action: 'teleport', tx: 270, ty: 70, spread: 30 },
+    handles: [['x', 'y'], ['tx', 'ty', 'target']],
+    fields: [...XY, N('width', 'Width', 60, 540), N('height', 'Height', 20, 300), T('multipliers', 'Multipliers'), N('thickness', 'Divider size', 2, 20),
+      S('colorMode', 'Colour', [['slot', 'Slot colour'], ['keep', 'Keep colour'], ['next', 'Next colour']]),
+      S('action', 'Then', [['teleport', 'Send to target'], ['stay', 'Stay in slot']]), N('tx', 'Target X', -100, 640), N('ty', 'Target Y', -100, 1060), N('spread', 'Target spread', 0, 250)],
+    summary: c => c.multipliers.split(',').map(s => X + s.trim()).join(' ')
+  },
+  zone: {
+    label: 'Trigger zone', glyph: 'zone',
+    desc: 'An area that multiplies, teleports, spawns, recolours or removes balls.',
+    defaults: { shape: 'circle', x: 270, y: 480, r: 30, w: 120, h: 40, action: 'multiply', factor: 2, tx: 270, ty: 80, spread: 20, colorMode: 'keep', color: 0, cooldown: 0, label: '', visible: true },
+    handles: [['x', 'y'], ['tx', 'ty', 'target']],
+    fields: [S('shape', 'Shape', [['circle', 'Circle'], ['rect', 'Rectangle'], ['outside', 'Outside a circle']]), ...XY, N('r', 'Radius', 4, 400), N('w', 'Width', 4, 540), N('h', 'Height', 4, 960),
+      S('action', 'Action', [['multiply', 'Multiply'], ['teleport', 'Teleport + multiply'], ['spawn', 'Spawn at target'], ['destroy', 'Remove'], ['recolor', 'Recolour']]),
+      N('factor', 'Multiplier / count', 0, 12), N('tx', 'Target X', -100, 640), N('ty', 'Target Y', -100, 1060), N('spread', 'Target spread', 0, 250),
+      S('colorMode', 'Colour', COLOR_MODES), P('color', 'Set colour'), N('cooldown', 'Cooldown (s)', 0, 5, 0.05), T('label', 'Label'), B('visible', 'Visible')],
+    summary: c => `${c.shape === 'outside' ? 'outside r ' + c.r : c.shape} · ${c.action}${['multiply', 'teleport', 'spawn'].includes(c.action) ? ' ' + X + c.factor : ''}`
+  },
+  gate: {
+    label: 'Multiplier gate', glyph: 'gate',
+    desc: 'A line. Every ball that crosses it is multiplied.',
+    defaults: { x1: 200, y1: 480, x2: 340, y2: 480, factor: 2, colorMode: 'next', color: 0, label: '' },
+    handles: [['x1', 'y1'], ['x2', 'y2'], ['mid']],
+    fields: [...LINE, N('factor', 'Multiplier', 0, 12), S('colorMode', 'Colour', COLOR_MODES), P('color', 'Set colour'), T('label', 'Label')],
+    summary: c => `${X}${c.factor}`
+  },
+  spawner: {
+    label: 'Spawner', glyph: 'spawner',
+    desc: 'Drops balls in, once or as a stream.',
+    defaults: { x: 270, y: 300, count: 1, rate: 0, total: 0, delay: 0, speed: 200, angle: 90, spread: 360, color: 0, radius: 0 },
+    fields: [...XY, N('count', 'Balls at start', 0, 300), N('rate', 'Stream (per s)', 0, 40, 0.1), N('total', 'Stream limit (0 = none)', 0, 3000), N('delay', 'Delay (s)', 0, 20, 0.1),
+      N('speed', 'Speed', 0, 900), N('angle', 'Direction (deg)', -180, 180), N('spread', 'Spread (deg)', 0, 360), P('color', 'Colour'), N('radius', 'Size (0 = default)', 0, 40, 0.5)],
+    summary: c => [c.count ? `${c.count} at start` : '', c.rate ? `${c.rate}/s stream` : ''].filter(Boolean).join(' · ') || 'idle'
+  },
+  force: {
+    label: 'Force field', glyph: 'force',
+    desc: 'Pushes balls inside it, like a fan or an elevator.',
+    defaults: { x: 270, y: 480, w: 80, h: 300, fx: 0, fy: -2200, visible: true },
+    fields: [...XY, N('w', 'Width', 10, 540), N('h', 'Height', 10, 960), N('fx', 'Push X', -4000, 4000, 10), N('fy', 'Push Y', -4000, 4000, 10), B('visible', 'Visible')],
+    summary: c => `push ${c.fx}, ${c.fy}`
+  }
+};
+
+const SETTINGS_DEFAULTS = {
+  name: 'Untitled', caption: '', seed: 1234, theme: 'light', gravity: 0, ballBounce: 0.95, drag: 0, minSpeed: 0, maxSpeed: 1800,
+  ballRadius: 6, maxBalls: 1200, fillLimit: 0, finale: 'burst', battle: false, counters: 'bottom', showLabels: true, palette: DEFAULT_PALETTE.slice()
+};
+const SETTINGS_FIELDS = [
+  T('name', 'Name'), T('caption', 'Caption'), N('seed', 'Seed', 1, 99999), S('theme', 'Stage look', [['light', 'Clean white'], ['dark', 'Dark']]),
+  N('gravity', 'Gravity', 0, 2400, 10), N('ballBounce', 'Ball bounce', 0, 1.2, 0.01), N('drag', 'Air drag', 0, 3, 0.01), N('minSpeed', 'Minimum speed', 0, 800, 5),
+  N('maxSpeed', 'Speed limit', 200, 3000, 10), N('ballRadius', 'Ball size', 2, 20, 0.5), N('maxBalls', 'Ball cap', 10, 3000, 10),
+  N('fillLimit', 'Fill finale (0 = off)', 0, 0.95, 0.01), S('finale', 'At the cap', [['burst', 'Burst open'], ['freeze', 'Freeze'], ['none', 'Keep running']]),
+  B('battle', 'Colour battle rules'), S('counters', 'Ball counter', [['bottom', 'Bottom'], ['top', 'Top'], ['corner', 'Top corner'], ['off', 'Hidden']]), B('showLabels', 'Show labels')
+];
+
+/* ==========================================================================
+   Templates
+   ========================================================================== */
+function part(type, over) { return Object.assign({ id: uid(), type }, clone(PART_TYPES[type].defaults), over || {}); }
+function scene(settings, parts) { return { v: 1, settings: Object.assign(clone(SETTINGS_DEFAULTS), settings), parts }; }
+
+const TEMPLATES = [
+  {
+    key: 'crusher', title: 'Crusher arms', blurb: 'Arms fold into a box and crush balls into 4 new ones.',
+    make: () => scene({ name: 'Crusher arms', caption: 'Can the crusher fill the circle?', gravity: 0, ballBounce: 1, minSpeed: 60, ballRadius: 5.5, maxBalls: 1300, fillLimit: 0.8 }, [
+      part('container', { x: 270, y: 470, radius: 225, thickness: 2.5 }),
+      part('crusher', { x: 270, y: 470, boxW: 190, boxH: 104, reach: 330, period: 1.8 }),
+      part('spawner', { x: 270, y: 470, count: 1, speed: 0, angle: 10, spread: 0, color: 0 })
+    ])
+  },
+  {
+    key: 'spiral', title: 'Spiral multiplier', blurb: 'A spinning spiral pumps balls through three ' + X + '2 gates.',
+    make: () => scene({ name: 'Spiral multiplier', caption: 'Each trip through the spiral: ' + X + '8', gravity: 900, ballBounce: 0.5, ballRadius: 5.5, maxBalls: 700 }, [
+      part('container', { x: 270, y: 560, radius: 149, thickness: 4, gaps: 1, gapSize: 70, gapAngle: -90 }),
+      part('spiral', { x: 270, y: 560, innerR: 34, pitch: 36, turns: 3, thickness: 5, spin: 150, handed: 1, gates: 3, gateFactor: 2 }),
+      part('zone', { shape: 'circle', x: 270, y: 560, r: 26, action: 'teleport', factor: 1, tx: 270, ty: 150, spread: 50, colorMode: 'keep', visible: false }),
+      part('zone', { shape: 'rect', x: 270, y: 950, w: 900, h: 40, action: 'teleport', factor: 1, tx: 270, ty: 150, spread: 50, colorMode: 'keep', visible: false }),
+      part('wall', { x1: 6, y1: 120, x2: 6, y2: 990, thickness: 8 }),
+      part('wall', { x1: 534, y1: 120, x2: 534, y2: 990, thickness: 8 }),
+      part('wall', { x1: 120, y1: 230, x2: 215, y2: 330, thickness: 8 }),
+      part('wall', { x1: 420, y1: 230, x2: 325, y2: 330, thickness: 8 }),
+      part('spawner', { x: 270, y: 150, count: 1, speed: 0, color: 0 })
+    ])
+  },
+  {
+    key: 'plinko', title: 'Plinko multiplier', blurb: 'Drop through pegs into slots that multiply.',
+    make: () => scene({ name: 'Plinko multiplier', caption: 'Which slot wins?', gravity: 900, ballBounce: 0.5, ballRadius: 6, maxBalls: 1000, counters: 'corner' }, [
+      part('pegs', { x: 270, y: 190, rows: 11, start: 3, spacing: 40, pegR: 5 }),
+      part('slots', { x: 270, y: 840, width: 500, height: 110, multipliers: '5,2,1,3,1,2,5', tx: 270, ty: 80, spread: 24 }),
+      part('wall', { x1: 18, y1: 120, x2: 18, y2: 900, thickness: 8 }),
+      part('wall', { x1: 522, y1: 120, x2: 522, y2: 900, thickness: 8 }),
+      part('spawner', { x: 270, y: 80, count: 1, speed: 0, color: 0 })
+    ])
+  },
+  {
+    key: 'rings', title: 'Ring escape', blurb: 'Every ball that breaks out spawns 2 more.',
+    make: () => scene({ name: 'Ring escape', caption: 'Every escape spawns two more', gravity: 600, ballBounce: 0.9, minSpeed: 300, ballRadius: 6, maxBalls: 700 }, [
+      part('container', { x: 270, y: 470, radius: 95, thickness: 4, gaps: 1, gapSize: 70, gapAngle: -90, spin: 80 }),
+      part('container', { x: 270, y: 470, radius: 155, thickness: 4, gaps: 1, gapSize: 60, gapAngle: 30, spin: -60 }),
+      part('container', { x: 270, y: 470, radius: 215, thickness: 4, gaps: 1, gapSize: 50, gapAngle: 150, spin: 45 }),
+      part('zone', { shape: 'outside', x: 270, y: 470, r: 228, action: 'spawn', factor: 2, tx: 270, ty: 470, spread: 6, colorMode: 'next', visible: false }),
+      part('spawner', { x: 270, y: 470, count: 3, speed: 260, angle: -60, spread: 120, color: 0 })
+    ])
+  },
+  {
+    key: 'hourglass', title: 'Hourglass race', blurb: 'A spinner at the neck splits balls into ' + X + '2 and ' + X + '3 sides.',
+    make: () => scene({ name: 'Hourglass race', caption: 'Blue ' + X + '2 vs orange ' + X + '3', gravity: 900, ballBounce: 0.45, ballRadius: 6, maxBalls: 950, counters: 'corner' }, [
+      part('wall', { x1: 70, y1: 120, x2: 250, y2: 380, thickness: 8 }),
+      part('wall', { x1: 470, y1: 120, x2: 290, y2: 380, thickness: 8 }),
+      part('spinner', { x: 270, y: 425, length: 66, bars: 1, speed: 200, thickness: 8 }),
+      part('wall', { x1: 236, y1: 405, x2: 60, y2: 640, thickness: 8 }),
+      part('wall', { x1: 304, y1: 405, x2: 480, y2: 640, thickness: 8 }),
+      part('wall', { x1: 60, y1: 640, x2: 60, y2: 905, thickness: 8 }),
+      part('wall', { x1: 480, y1: 640, x2: 480, y2: 905, thickness: 8 }),
+      part('wall', { x1: 60, y1: 905, x2: 480, y2: 905, thickness: 8 }),
+      part('wall', { x1: 270, y1: 540, x2: 270, y2: 905, thickness: 6 }),
+      part('gate', { x1: 100, y1: 610, x2: 264, y2: 610, factor: 2, colorMode: 'fixed', color: 6 }),
+      part('gate', { x1: 276, y1: 610, x2: 440, y2: 610, factor: 3, colorMode: 'fixed', color: 8 }),
+      part('spawner', { x: 270, y: 80, count: 0, rate: 8, speed: 0, spread: 40, color: 11 })
+    ])
+  },
+  {
+    key: 'battle', title: 'Colour battle', blurb: 'Teams convert each other. Last colour standing wins.',
+    make: () => scene({ name: 'Colour battle', caption: 'Last colour standing wins', gravity: 0, ballBounce: 1, minSpeed: 160, ballRadius: 6.5, maxBalls: 500, battle: true, finale: 'freeze' }, [
+      part('container', { x: 270, y: 470, radius: 230, thickness: 3 }),
+      part('zone', { shape: 'circle', x: 200, y: 400, r: 24, action: 'multiply', factor: 2, cooldown: 1, label: X + '2' }),
+      part('zone', { shape: 'circle', x: 340, y: 540, r: 24, action: 'multiply', factor: 2, cooldown: 1, label: X + '2' }),
+      part('spawner', { x: 190, y: 390, count: 6, speed: 180, color: 0 }),
+      part('spawner', { x: 350, y: 390, count: 6, speed: 180, color: 6 }),
+      part('spawner', { x: 190, y: 550, count: 6, speed: 180, color: 3 }),
+      part('spawner', { x: 350, y: 550, count: 6, speed: 180, color: 8 })
+    ])
+  },
+  {
+    key: 'factory', title: 'Conveyor factory', blurb: 'Belts carry balls through ' + X + '2, ' + X + '3 and a press.',
+    make: () => scene({ name: 'Conveyor factory', caption: 'One ball in, a pile out', gravity: 900, ballBounce: 0.3, ballRadius: 6, maxBalls: 1000, counters: 'off' }, [
+      part('spawner', { x: 70, y: 90, count: 0, rate: 2, speed: 0, spread: 0, color: 0 }),
+      part('conveyor', { x1: 30, y1: 190, x2: 400, y2: 225, speed: 150 }),
+      part('gate', { x1: 300, y1: 150, x2: 300, y2: 208, factor: 2, colorMode: 'next' }),
+      part('conveyor', { x1: 510, y1: 320, x2: 140, y2: 355, speed: 150 }),
+      part('gate', { x1: 260, y1: 285, x2: 260, y2: 338, factor: 3, colorMode: 'next' }),
+      part('wall', { x1: 530, y1: 230, x2: 530, y2: 330, thickness: 8 }),
+      part('wall', { x1: 10, y1: 360, x2: 10, y2: 470, thickness: 8 }),
+      part('conveyor', { x1: 30, y1: 465, x2: 420, y2: 500, speed: 150 }),
+      part('press', { x: 250, y: 395, width: 70, stroke: 82, period: 1.5, factor: 2 }),
+      part('wall', { x1: 30, y1: 620, x2: 30, y2: 920, thickness: 8 }),
+      part('wall', { x1: 510, y1: 560, x2: 510, y2: 920, thickness: 8 }),
+      part('wall', { x1: 30, y1: 920, x2: 510, y2: 920, thickness: 8 })
+    ])
+  },
+  {
+    key: 'grow', title: 'Bouncing growth', blurb: 'Every wall hit adds a ball until the circle is full.',
+    make: () => scene({ name: 'Bouncing growth', caption: 'Every bounce adds a ball', gravity: 900, ballBounce: 1, minSpeed: 200, ballRadius: 5, maxBalls: 900, fillLimit: 0.7 }, [
+      part('container', { x: 270, y: 470, radius: 220, thickness: 3, onHit: 'addBall', hitCooldown: 1.1, bounce: 1 }),
+      part('spawner', { x: 270, y: 380, count: 1, speed: 320, angle: -30, spread: 0, color: 0 })
+    ])
+  },
+  {
+    key: 'blank', title: 'Blank', blurb: 'An empty circle and one spawner. Build your own.',
+    make: () => scene({ name: 'My simulation', caption: '', gravity: 500, ballBounce: 0.9 }, [
+      part('container', { x: 270, y: 470, radius: 220 }),
+      part('spawner', { x: 270, y: 380, count: 1, speed: 250, angle: -45, spread: 0 })
+    ])
+  }
+];
+
+function normalizeScene(raw) {
+  if (!raw || typeof raw !== 'object' || !Array.isArray(raw.parts)) throw new Error('This file is not a simulation setup.');
+  const s = Object.assign(clone(SETTINGS_DEFAULTS), raw.settings || {});
+  if (raw.settings && raw.settings.showCounters === false && !raw.settings.counters) s.counters = 'off';
+  delete s.showCounters;
+  if (!Array.isArray(s.palette) || !s.palette.length) s.palette = DEFAULT_PALETTE.slice();
+  const parts = raw.parts.filter(p => p && PART_TYPES[p.type]).map(p => Object.assign({ id: uid() }, clone(PART_TYPES[p.type].defaults), p));
+  return { v: 1, settings: s, parts };
+}
+
+/* ==========================================================================
+   Physics: parts at runtime
+   ========================================================================== */
+class Part {
+  constructor(cfg) { this.cfg = cfg; this.broken = false; this.prevSegs = null; }
+  get burstable() { return false; }
+  segs() { return null; }
+  arcs() { return null; }
+  sensors() {}
+  update() {}
+}
+
+class ContainerPart extends Part {
+  get burstable() { return this.cfg.burst !== false; }
+  arcs(t) {
+    const c = this.cfg; if (this.broken) return null;
+    const hw = Math.max(0.75, c.thickness / 2), omega = (c.spin || 0) * DEG, rot = omega * t, out = [];
+    const base = { cx: c.x, cy: c.y, R: c.radius, hw, omega, e: c.bounce, fr: 0, owner: this };
+    if (!c.gaps) out.push(Object.assign({ a0: 0, span: TAU, full: true }, base));
+    else {
+      const n = Math.round(c.gaps), gs = Math.min(c.gapSize * DEG, TAU / n * 0.95), step = TAU / n;
+      for (let i = 0; i < n; i++) out.push(Object.assign({ a0: c.gapAngle * DEG + rot + i * step + gs / 2, span: step - gs }, base));
+    }
+    return out;
+  }
+  onHit(b, vn, sim) {
+    const c = this.cfg;
+    if (c.onHit === 'none' || vn < 60 || b.hitCd > sim.t) return;
+    b.hitCd = sim.t + c.hitCooldown;
+    if (c.onHit === 'addBall') {
+      const dx = c.x - b.x, dy = c.y - b.y, d = Math.hypot(dx, dy) || 1, a = sim.rng() * TAU, sp = 120 + sim.rng() * 160;
+      const nb = sim.addBall(b.x + dx / d * b.r * 2.2, b.y + dy / d * b.r * 2.2, Math.cos(a) * sp, Math.sin(a) * sp, (b.c + 1) % sim.pal.length, b.r);
+      if (nb) { nb.hitCd = sim.t + c.hitCooldown; sim.emit('multiply', b.x, b.y, nb.c); }
+    } else if (c.onHit === 'grow') {
+      b.r = Math.min(b.r + c.growBy, c.radius * 0.96);
+      sim.emit('grow', b.x, b.y, b.c);
+    }
+  }
+  onBreak(sim) {
+    const c = this.cfg; this.breakT = sim.t; this.frags = [];
+    const n = 18;
+    for (let i = 0; i < n; i++) {
+      const a = i / n * TAU, sp = 140 + sim.rng() * 160;
+      this.frags.push({ a, span: TAU / n * 0.9, vx: Math.cos(a + TAU / n / 2) * sp, vy: Math.sin(a + TAU / n / 2) * sp, spin: (sim.rng() - 0.5) * 6 });
+    }
+  }
+}
+
+class WallPart extends Part {
+  segs(t) {
+    const c = this.cfg; if (this.broken) return null;
+    let { x1, y1, x2, y2 } = c;
+    if (c.spin) {
+      const mx = (x1 + x2) / 2, my = (y1 + y2) / 2, a = c.spin * DEG * t, co = Math.cos(a), si = Math.sin(a);
+      const r1x = x1 - mx, r1y = y1 - my;
+      x1 = mx + r1x * co - r1y * si; y1 = my + r1x * si + r1y * co;
+      x2 = mx - r1x * co + r1y * si; y2 = my - r1x * si - r1y * co;
+    }
+    return [{ ax: x1, ay: y1, bx: x2, by: y2, hw: c.thickness / 2, e: c.bounce, fr: c.friction, surf: 0 }];
+  }
+  get burstable() { return true; }
+}
+
+class ConveyorPart extends Part {
+  segs() {
+    const c = this.cfg; if (this.broken) return null;
+    return [{ ax: c.x1, ay: c.y1, bx: c.x2, by: c.y2, hw: c.thickness / 2, e: 0.1, fr: c.friction, surf: c.speed }];
+  }
+  get burstable() { return true; }
+}
+
+class SpinnerPart extends Part {
+  segs(t) {
+    const c = this.cfg, out = [], n = Math.max(1, Math.round(c.bars)), L = c.length / 2;
+    for (let i = 0; i < n; i++) {
+      const a = (c.phase + c.speed * t) * DEG + i * Math.PI / n, dx = Math.cos(a) * L, dy = Math.sin(a) * L;
+      out.push({ ax: c.x - dx, ay: c.y - dy, bx: c.x + dx, by: c.y + dy, hw: c.thickness / 2, e: c.bounce, fr: 0.05, surf: 0 });
+    }
+    return out;
+  }
+}
+
+class CrusherPart extends Part {
+  constructor(cfg) { super(cfg); this.pending = []; this.lastP = null; }
+  state(t) {
+    const c = this.cfg, p = ((t / c.period) + c.phase) % 1;
+    // slide in -> fold the flaps shut -> squeeze -> release -> unfold -> slide out
+    let u = 0, f = 0;
+    const seg = (a, b) => easeInOut((p - a) / (b - a));
+    if (p < 0.18) { u = 0; f = 0; }
+    else if (p < 0.32) { u = seg(0.18, 0.32); }
+    else if (p < 0.44) { u = 1; f = seg(0.32, 0.44); }
+    else if (p < 0.5) { u = 1; f = 1; }
+    else if (p < 0.58) { u = 1 + easeIn((p - 0.5) / 0.08); f = 1; }
+    else if (p < 0.63) { u = 2; f = 1; }
+    else if (p < 0.7) { u = 2 - seg(0.63, 0.7); f = 1; }
+    else if (p < 0.8) { u = 1; f = 1 - seg(0.7, 0.8); }
+    else if (p < 0.94) { u = 1 - seg(0.8, 0.94); }
+    const hw = c.thickness / 2, W = c.boxW, H = c.boxH;
+    const topX = u <= 1 ? lerp(c.x + W / 2 + hw, c.x - W / 2, u) : lerp(c.x - W / 2, c.x - hw, u - 1);
+    const botX = 2 * c.x - topX;
+    // flaps rest pointing outward along the arm and swing inward, sweeping balls into the box
+    return { p, u, f, hw, topX, botX, yTop: c.y - H / 2, yBot: c.y + H / 2, aTop: Math.PI - f * Math.PI / 2, aBot: -f * Math.PI / 2 };
+  }
+  segs(t) {
+    const c = this.cfg, s = this.state(t), H = c.boxH, fr = 0.02, e = 0.6;
+    return [
+      { ax: s.topX, ay: s.yTop, bx: s.topX + c.reach, by: s.yTop, hw: s.hw, e, fr, surf: 0 },
+      { ax: s.topX, ay: s.yTop, bx: s.topX + Math.cos(s.aTop) * H, by: s.yTop + Math.sin(s.aTop) * H, hw: s.hw, e, fr, surf: 0 },
+      { ax: s.botX - c.reach, ay: s.yBot, bx: s.botX, by: s.yBot, hw: s.hw, e, fr, surf: 0 },
+      { ax: s.botX, ay: s.yBot, bx: s.botX + Math.cos(s.aBot) * H, by: s.yBot + Math.sin(s.aBot) * H, hw: s.hw, e, fr, surf: 0 }
+    ];
+  }
+  update(sim) {
+    const c = this.cfg, s = this.state(sim.t);
+    if (s.u > 1) {
+      const x0 = s.topX + s.hw, x1 = s.botX - s.hw, y0 = s.yTop + s.hw, y1 = s.yBot - s.hw, w = x1 - x0;
+      for (const b of sim.balls) {
+        if (b.dead || b.x < x0 - 1 || b.x > x1 + 1 || b.y < y0 || b.y > y1) continue;
+        if (w < b.r * 2.3) { b.dead = true; this.pending.push(b.c); sim.emit('debris', b.x, b.y, b.c); }
+      }
+    }
+    const crushAt = 0.58;
+    if (this.lastP !== null && this.lastP < crushAt && s.p >= crushAt) {
+      if (this.pending.length) {
+        const r = sim.settings.ballRadius;
+        let side = 0;
+        for (const col of this.pending) {
+          const nc = sim.colorFor(col, c.colorMode, c.color);
+          for (let k = 0; k < c.factor; k++) {
+            side ^= 1;
+            const sx = side ? -1 : 1;
+            const jx = sim.rng(), jy = sim.rng();
+            sim.queueBall(
+              c.x + sx * (r * 2 + jx * c.boxW * 0.35),
+              side ? s.yTop - s.hw - r - 1 - jy * r * 3 : s.yBot + s.hw + r + 1 + jy * r * 3,
+              sx * (60 + sim.rng() * 160), (side ? -1 : 1) * (60 + sim.rng() * 160), nc, r);
+          }
+        }
+        sim.emit('crush', c.x, c.y, sim.colorFor(this.pending[0], c.colorMode, c.color), { count: this.pending.length * c.factor, magnify: c.magnifier });
+        this.pending = [];
+      }
+    }
+    this.lastP = s.p;
+  }
+}
+
+class PressPart extends Part {
+  headY(t) {
+    const c = this.cfg, p = ((t / c.period) + c.phase) % 1;
+    let k = 0, phase = 'rest';
+    if (p < 0.45) k = 0;
+    else if (p < 0.57) { k = easeIn((p - 0.45) / 0.12); phase = 'slam'; }
+    else if (p < 0.67) { k = 1; phase = 'hold'; }
+    else k = 1 - easeInOut((p - 0.67) / 0.33);
+    return { y: c.y + c.stroke * k, phase };
+  }
+  segs(t) {
+    const c = this.cfg, h = this.headY(t).y, w = c.width / 2, hw = 5;
+    return [
+      { ax: c.x - w, ay: h, bx: c.x + w, by: h, hw, e: 0.3, fr: 0.05, surf: 0 },
+      { ax: c.x - w, ay: h, bx: c.x - w, by: h - 30, hw, e: 0.3, fr: 0.05, surf: 0 },
+      { ax: c.x + w, ay: h, bx: c.x + w, by: h - 30, hw, e: 0.3, fr: 0.05, surf: 0 }
+    ];
+  }
+  update(sim) {
+    const c = this.cfg, st = this.headY(sim.t);
+    if (st.phase !== 'slam') return;
+    const w = c.width / 2, hy = st.y + 5;
+    for (const b of sim.balls) {
+      if (b.dead || b.pressCd > sim.t) continue;
+      if (Math.abs(b.x - c.x) < w && b.y > st.y - 2 && b.y - b.r < hy + 1) {
+        b.dead = true;
+        const nc = sim.colorFor(b.c, c.colorMode, c.color);
+        for (let k = 0; k < c.factor; k++) {
+          const sx = k % 2 ? 1 : -1, off = w + b.r + 2 + Math.floor(k / 2) * b.r * 2.2;
+          const nb = sim.addBall(c.x + sx * off, b.y - b.r * 0.5, sx * (90 + sim.rng() * 90), -60 - sim.rng() * 80, nc, b.r);
+          if (nb) nb.pressCd = sim.t + c.period * 0.5;
+        }
+        sim.emit('press', b.x, b.y, nc);
+      }
+    }
+  }
+}
+
+class SpiralPart extends Part {
+  constructor(cfg) {
+    super(cfg);
+    const total = TAU * cfg.turns;
+    this.pts = [];
+    for (let th = 0; th <= total + 1e-6; th += Math.min(0.14, 18 / (cfg.innerR + cfg.pitch * th / TAU))) this.pts.push([th, cfg.innerR + cfg.pitch * th / TAU]);
+    const last = this.pts[this.pts.length - 1];
+    if (last[0] < total) this.pts.push([total, cfg.innerR + cfg.pitch * cfg.turns]);
+  }
+  get burstable() { return true; }
+  rot(t) { return this.cfg.spin * DEG * t; }
+  segs(t) {
+    if (this.broken) return null;
+    const c = this.cfg, rot = this.rot(t), h = Number(c.handed) || 1, out = [];
+    let px = 0, py = 0;
+    for (let i = 0; i < this.pts.length; i++) {
+      const [th, r] = this.pts[i], a = h * th + rot, x = c.x + Math.cos(a) * r, y = c.y + Math.sin(a) * r;
+      if (i) out.push({ ax: px, ay: py, bx: x, by: y, hw: c.thickness / 2, e: c.bounce, fr: 0.04, surf: 0 });
+      px = x; py = y;
+    }
+    return out;
+  }
+  gateGeom(t) {
+    const c = this.cfg, n = Math.round(c.gates), out = [];
+    if (!n || c.turns <= 1) return out;
+    const rot = this.rot(t), h = Number(c.handed) || 1, hw = c.thickness / 2;
+    for (let i = 0; i < n; i++) {
+      const th = TAU * (c.turns - 1) * (i + 0.5) / n, a = h * th + rot;
+      const r0 = c.innerR + c.pitch * th / TAU + hw + 1, r1 = r0 + c.pitch - 2 * hw - 2;
+      out.push({ ax: c.x + Math.cos(a) * r0, ay: c.y + Math.sin(a) * r0, bx: c.x + Math.cos(a) * r1, by: c.y + Math.sin(a) * r1 });
+    }
+    return out;
+  }
+  sensors(sim, out) {
+    if (this.broken) return;
+    const c = this.cfg;
+    for (const g of this.gateGeom(sim.t)) out.push({ kind: 'seg', once: true, ...g, fn: b => sim.multiply(b, c.gateFactor, c.gateColorMode, c.gateColor, true) });
+  }
+}
+
+class PegsPart extends Part {
+  constructor(cfg) {
+    super(cfg);
+    this.pegs = [];
+    const dy = cfg.spacing * 0.866;
+    for (let i = 0; i < cfg.rows; i++) {
+      const n = cfg.layout === 'grid' ? cfg.start + (i % 2 ? 0 : 1) : cfg.start + i;
+      for (let j = 0; j < n; j++) this.pegs.push([cfg.x + (j - (n - 1) / 2) * cfg.spacing, cfg.y + i * dy]);
+    }
+  }
+  get burstable() { return true; }
+  segs() {
+    if (this.broken) return null;
+    const c = this.cfg;
+    return this.pegs.map(([x, y]) => ({ ax: x, ay: y, bx: x, by: y, hw: c.pegR, e: c.bounce, fr: 0.02, surf: 0 }));
+  }
+}
+
+function parseMultipliers(s) { return String(s).split(',').map(v => Math.max(0, Math.round(Number(v.trim()) || 0))).slice(0, 16); }
+
+class SlotsPart extends Part {
+  constructor(cfg) { super(cfg); this.mult = parseMultipliers(cfg.multipliers); if (!this.mult.length) this.mult = [1]; }
+  get burstable() { return true; }
+  geom() {
+    const c = this.cfg, n = this.mult.length, x0 = c.x - c.width / 2, w = c.width / n, top = c.y - c.height / 2, bot = c.y + c.height / 2;
+    return { n, x0, w, top, bot };
+  }
+  segs() {
+    if (this.broken) return null;
+    const c = this.cfg, g = this.geom(), hw = c.thickness / 2, out = [];
+    for (let i = 0; i <= g.n; i++) out.push({ ax: g.x0 + i * g.w, ay: g.top, bx: g.x0 + i * g.w, by: g.bot, hw, e: 0.3, fr: 0.05, surf: 0 });
+    out.push({ ax: g.x0, ay: g.bot, bx: g.x0 + g.n * g.w, by: g.bot, hw, e: 0.2, fr: 0.1, surf: 0 });
+    return out;
+  }
+  sensors(sim, out) {
+    if (this.broken) return;
+    const c = this.cfg, g = this.geom();
+    for (let i = 0; i < g.n; i++) {
+      const m = this.mult[i], idx = i;
+      out.push({
+        kind: 'rect', once: true, x0: g.x0 + i * g.w, x1: g.x0 + (i + 1) * g.w, y0: g.top + (g.bot - g.top) * 0.35, y1: g.bot,
+        fn: b => {
+          const mode = c.colorMode === 'slot' ? 'fixed' : c.colorMode;
+          if (c.action === 'teleport') {
+            if (m <= 0) { b.dead = true; sim.emit('destroy', b.x, b.y, b.c); return; }
+            const nc = sim.colorFor(b.c, mode, idx);
+            for (let k = 0; k < m; k++) {
+              const nb = k === 0 ? b : sim.addBall(0, 0, 0, 0, nc, b.r);
+              if (!nb) break;
+              nb.c = nc; sim.teleport(nb, c.tx, c.ty - k * nb.r * 2.2, c.spread);
+            }
+            sim.emit('multiply', b.x, c.y, nc, { factor: m });
+          } else sim.multiply(b, m, mode, idx, false);
+        }
+      });
+    }
+  }
+}
+
+class ZonePart extends Part {
+  constructor(cfg) { super(cfg); this.lastFire = -1e9; }
+  sensors(sim, out) {
+    const c = this.cfg;
+    const fn = b => {
+      if (c.cooldown > 0) { if (sim.t - this.lastFire < c.cooldown) return; this.lastFire = sim.t; }
+      switch (c.action) {
+        case 'multiply': sim.multiply(b, c.factor, c.colorMode, c.color, true); break;
+        case 'recolor': b.c = sim.colorFor(b.c, c.colorMode, c.color); break;
+        case 'destroy': b.dead = true; sim.emit('destroy', b.x, b.y, b.c); break;
+        case 'spawn': {
+          const nc = sim.colorFor(b.c, c.colorMode, c.color);
+          for (let k = 0; k < c.factor; k++) {
+            const a = sim.rng() * TAU, sp = 60 + sim.rng() * 140;
+            sim.queueBall(c.tx + (sim.rng() * 2 - 1) * c.spread, c.ty + (sim.rng() * 2 - 1) * c.spread, Math.cos(a) * sp, Math.sin(a) * sp, nc, sim.settings.ballRadius);
+          }
+          sim.emit('multiply', c.tx, c.ty, nc, { factor: c.factor });
+          break;
+        }
+        case 'teleport': {
+          if (c.factor <= 0) { b.dead = true; return; }
+          const nc = sim.colorFor(b.c, c.colorMode, c.color);
+          for (let k = 0; k < c.factor; k++) {
+            const nb = k === 0 ? b : sim.addBall(0, 0, 0, 0, nc, b.r);
+            if (!nb) break;
+            nb.c = nc; sim.teleport(nb, c.tx, c.ty - k * nb.r * 2.2, c.spread);
+          }
+          if (c.factor > 1) sim.emit('multiply', c.tx, c.ty, nc, { factor: c.factor });
+          break;
+        }
+      }
+    };
+    if (c.shape === 'rect') out.push({ kind: 'rect', x0: c.x - c.w / 2, x1: c.x + c.w / 2, y0: c.y - c.h / 2, y1: c.y + c.h / 2, fn });
+    else out.push({ kind: c.shape === 'outside' ? 'outside' : 'circle', cx: c.x, cy: c.y, r: c.r, fn });
+  }
+}
+
+class GatePart extends Part {
+  sensors(sim, out) {
+    const c = this.cfg;
+    out.push({ kind: 'seg', once: true, ax: c.x1, ay: c.y1, bx: c.x2, by: c.y2, fn: b => sim.multiply(b, c.factor, c.colorMode, c.color, true) });
+  }
+}
+
+class SpawnerPart extends Part {
+  constructor(cfg) { super(cfg); this.burstDone = false; this.acc = 0; this.emitted = 0; }
+  fire(sim) {
+    const c = this.cfg, a = (c.angle + (sim.rng() - 0.5) * c.spread) * DEG, sp = c.speed * (c.spread ? 0.7 + sim.rng() * 0.6 : 1);
+    const r = c.radius > 0 ? c.radius : sim.settings.ballRadius;
+    const j = c.count > 1 || c.rate ? r * 1.5 : r * 0.4;
+    return sim.addBall(c.x + (sim.rng() - 0.5) * j * 2, c.y + (sim.rng() - 0.5) * j * 2, Math.cos(a) * sp, Math.sin(a) * sp, c.color % sim.pal.length, r);
+  }
+  update(sim, dt) {
+    const c = this.cfg;
+    if (sim.t < c.delay) return;
+    if (!this.burstDone) { this.burstDone = true; for (let i = 0; i < c.count; i++) this.fire(sim); }
+    if (c.rate > 0 && (!c.total || this.emitted < c.total)) {
+      this.acc += c.rate * dt;
+      while (this.acc >= 1) { this.acc -= 1; if (this.fire(sim)) this.emitted++; }
+    }
+  }
+}
+
+class ForcePart extends Part {
+  update(sim, dt) {
+    const c = this.cfg, x0 = c.x - c.w / 2, x1 = c.x + c.w / 2, y0 = c.y - c.h / 2, y1 = c.y + c.h / 2;
+    for (const b of sim.balls) if (b.x > x0 && b.x < x1 && b.y > y0 && b.y < y1) { b.vx += c.fx * dt; b.vy += c.fy * dt; }
+  }
+}
+
+const PART_CLASSES = { container: ContainerPart, wall: WallPart, conveyor: ConveyorPart, spinner: SpinnerPart, crusher: CrusherPart, press: PressPart, spiral: SpiralPart, pegs: PegsPart, slots: SlotsPart, zone: ZonePart, gate: GatePart, spawner: SpawnerPart, force: ForcePart };
+
+/* ==========================================================================
+   Physics: the simulation
+   ========================================================================== */
+const GX0 = -400, GY0 = -800, GW = WORLD_W + 800, GH = WORLD_H + 1400;
+const SEG_CS = 40, SEG_COLS = Math.ceil(GW / SEG_CS), SEG_ROWS = Math.ceil(GH / SEG_CS);
+
+class Sim {
+  constructor(sceneCfg) {
+    this.scene = clone(sceneCfg);
+    this.settings = this.scene.settings;
+    this.pal = this.settings.palette.length ? this.settings.palette : DEFAULT_PALETTE;
+    this.rng = mulberry32(Math.round(this.settings.seed) || 1);
+    this.t = 0; this.steps = 0; this.balls = []; this.queue = []; this.events = []; this.nextId = 1;
+    this.parts = this.scene.parts.map(cfg => new PART_CLASSES[cfg.type](cfg));
+    this.peak = 0; this.finale = null; this.ended = false; this.winner = -1;
+    this.cap = Math.max(1, Math.round(this.settings.maxBalls));
+    const cs = Math.max(8, this.settings.ballRadius * 2 + 1);
+    this.bcs = cs; this.bcols = Math.ceil(GW / cs); this.brows = Math.ceil(GH / cs);
+    this.bhead = new Int32Array(this.bcols * this.brows);
+    this.bnext = new Int32Array(4096);
+    this.segCells = Array.from({ length: SEG_COLS * SEG_ROWS }, () => []);
+    this.touched = [];
+    this.segs = []; this.arcs = []; this.bigSegs = []; this.sensorList = [];
+    this.container = this.parts.find(p => p instanceof ContainerPart && !p.cfg.gaps) || this.parts.find(p => p instanceof ContainerPart) || null;
+  }
+  emit(type, x, y, c, extra) { if (this.events.length < 400) this.events.push(Object.assign({ type, x, y, c, t: this.t }, extra)); }
+  get count() { return this.balls.length; }
+  canSpawn() { return this.balls.length < this.cap; }
+  addBall(x, y, vx, vy, c, r, m = 0, u = 0) {
+    if (this.balls.length >= this.cap) return null;
+    const b = { id: this.nextId++, x, y, vx, vy, r: r || this.settings.ballRadius, c: c | 0, m, u, hitCd: 0, cv: 0, pressCd: 0, dead: false, held: false };
+    const k = this.container;
+    if (k && !k.cfg.gaps && !k.broken) b.held = (x - k.cfg.x) ** 2 + (y - k.cfg.y) ** 2 < k.cfg.radius * k.cfg.radius;
+    this.balls.push(b);
+    if (this.balls.length > this.peak) this.peak = this.balls.length;
+    return b;
+  }
+  queueBall(x, y, vx, vy, c, r) { this.queue.push([x, y, vx, vy, c, r]); }
+  colorFor(c, mode, idx) {
+    const n = this.pal.length;
+    if (mode === 'next') return (c + 1) % n;
+    if (mode === 'fixed') return ((idx | 0) % n + n) % n;
+    if (mode === 'random') return Math.floor(this.rng() * n);
+    return c;
+  }
+  multiply(b, factor, mode, idx, label) {
+    factor = Math.round(factor);
+    if (factor <= 0) { b.dead = true; this.emit('destroy', b.x, b.y, b.c); return; }
+    const nc = this.colorFor(b.c, mode, idx);
+    b.c = nc;
+    for (let k = 1; k < factor; k++) {
+      const a = this.rng() * TAU, sp = 40 + this.rng() * 90;
+      if (!this.addBall(b.x + Math.cos(a) * b.r * 0.5, b.y + Math.sin(a) * b.r * 0.5, b.vx * 0.9 + Math.cos(a) * sp, b.vy * 0.9 + Math.sin(a) * sp, nc, b.r, b.m, b.u)) break;
+    }
+    if (factor > 1) this.emit('multiply', b.x, b.y, nc, { factor, label });
+  }
+  teleport(b, tx, ty, spread) {
+    b.x = tx + (this.rng() * 2 - 1) * spread; b.y = ty; b.vx = (this.rng() * 2 - 1) * 30; b.vy = 0; b.m = 0; b.u = 0;
+  }
+
+  step() {
+    const s = this.settings;
+    if (this.ended) return;
+    this.t += DT; this.steps++;
+    for (const p of this.parts) p.update(this, DT);
+    this.flushQueue();
+    this.buildColliders();
+
+    const g = s.gravity, drag = s.drag, minS = s.minSpeed, maxS = s.maxSpeed, freeze = this.finale && this.finale.type === 'freeze';
+    const kd = drag ? 1 - drag * DT : 1;
+    for (const b of this.balls) {
+      b.vy += g * DT;
+      if (drag) { b.vx *= kd; b.vy *= kd; }
+      if (freeze) { b.vx *= 0.985; b.vy *= 0.985; }
+      const sp2 = b.vx * b.vx + b.vy * b.vy;
+      if (sp2 > maxS * maxS) { const k = maxS / Math.sqrt(sp2); b.vx *= k; b.vy *= k; }
+      else if (minS > 0 && !freeze && sp2 < minS * minS) {
+        if (sp2 < 1) { const a = this.rng() * TAU; b.vx = Math.cos(a) * minS; b.vy = Math.sin(a) * minS; }
+        else { const k = lerp(1, minS / Math.sqrt(sp2), 0.05); b.vx *= k; b.vy *= k; }
+      }
+      b.x += b.vx * DT; b.y += b.vy * DT;
+    }
+    if (s.battle) this.teams = this.colorCounts();
+    this.buildBallGrid();
+    for (let it = 0; it < 2; it++) { this.solveBalls(); this.solveWalls(); }
+    this.runSensors();
+    this.cleanup();
+    this.checkEnd();
+  }
+
+  flushQueue() {
+    if (!this.queue.length) return;
+    let budget = 10;
+    while (this.queue.length && budget-- > 0) {
+      const q = this.queue.shift();
+      if (!this.addBall(q[0], q[1], q[2], q[3], q[4], q[5])) { this.queue.length = 0; break; }
+    }
+  }
+
+  buildColliders() {
+    for (const i of this.touched) this.segCells[i].length = 0;
+    this.touched.length = 0;
+    this.segs = []; this.arcs = []; this.bigSegs.length = 0;
+    const exp = Math.max(8, this.settings.ballRadius) + 4;
+    for (const p of this.parts) {
+      const cur = p.segs(this.t);
+      if (cur) {
+        const prev = p.prevSegs && p.prevSegs.length === cur.length ? p.prevSegs : null;
+        for (let i = 0; i < cur.length; i++) {
+          const s = cur[i];
+          if (prev) { const q = prev[i]; s.vax = (s.ax - q.ax) / DT; s.vay = (s.ay - q.ay) / DT; s.vbx = (s.bx - q.bx) / DT; s.vby = (s.by - q.by) / DT; }
+          else { s.vax = s.vay = s.vbx = s.vby = 0; }
+          const dx = s.bx - s.ax, dy = s.by - s.ay, L = Math.hypot(dx, dy);
+          s.len2 = dx * dx + dy * dy; s.ux = L ? dx / L : 1; s.uy = L ? dy / L : 0; s.owner = p;
+          this.segs.push(s);
+          this.insertSeg(s, exp + s.hw);
+        }
+      }
+      p.prevSegs = cur;
+      const arcs = p.arcs(this.t);
+      if (arcs) for (const a of arcs) this.arcs.push(a);
+    }
+  }
+  insertSeg(s, e) {
+    const x0 = Math.floor((Math.min(s.ax, s.bx) - e - GX0) / SEG_CS), x1 = Math.floor((Math.max(s.ax, s.bx) + e - GX0) / SEG_CS);
+    const y0 = Math.floor((Math.min(s.ay, s.by) - e - GY0) / SEG_CS), y1 = Math.floor((Math.max(s.ay, s.by) + e - GY0) / SEG_CS);
+    for (let cy = Math.max(0, y0); cy <= Math.min(SEG_ROWS - 1, y1); cy++)
+      for (let cx = Math.max(0, x0); cx <= Math.min(SEG_COLS - 1, x1); cx++) {
+        const i = cy * SEG_COLS + cx, cell = this.segCells[i];
+        if (!cell.length) this.touched.push(i);
+        cell.push(s);
+      }
+  }
+
+  buildBallGrid() {
+    const n = this.balls.length;
+    if (this.bnext.length < n) this.bnext = new Int32Array(n * 2);
+    this.bhead.fill(-1);
+    this.big = [];
+    const cs = this.bcs, half = cs / 2;
+    for (let i = 0; i < n; i++) {
+      const b = this.balls[i];
+      if (b.r > half) { this.big.push(i); continue; }
+      const cx = Math.floor((b.x - GX0) / cs), cy = Math.floor((b.y - GY0) / cs);
+      if (cx < 0 || cy < 0 || cx >= this.bcols || cy >= this.brows) { b.gi = -1; continue; }
+      const ci = cy * this.bcols + cx;
+      b.gi = ci; this.bnext[i] = this.bhead[ci]; this.bhead[ci] = i;
+    }
+  }
+  solveBalls() {
+    const balls = this.balls, n = balls.length, cols = this.bcols, rows = this.brows, head = this.bhead, next = this.bnext;
+    const e = this.settings.ballBounce;
+    for (let i = 0; i < n; i++) {
+      const a = balls[i];
+      if (a.gi === undefined || a.gi < 0 || a.r > this.bcs / 2) continue;
+      const cx = a.gi % cols, cy = (a.gi / cols) | 0;
+      for (let oy = -1; oy <= 1; oy++) {
+        const yy = cy + oy; if (yy < 0 || yy >= rows) continue;
+        for (let ox = -1; ox <= 1; ox++) {
+          const xx = cx + ox; if (xx < 0 || xx >= cols) continue;
+          for (let j = head[yy * cols + xx]; j !== -1; j = next[j]) if (j > i) this.collideBalls(a, balls[j], e);
+        }
+      }
+    }
+    for (const bi of this.big) { const a = balls[bi]; for (let j = 0; j < n; j++) if (j !== bi && (balls[j].r <= this.bcs / 2 || j > bi)) this.collideBalls(a, balls[j], e); }
+  }
+  collideBalls(a, b, e) {
+    let dx = b.x - a.x, dy = b.y - a.y;
+    const rs = a.r + b.r, d2 = dx * dx + dy * dy;
+    if (d2 >= rs * rs) return;
+    let d = Math.sqrt(d2);
+    if (d < 1e-6) { const ang = this.rng() * TAU; dx = Math.cos(ang); dy = Math.sin(ang); d = 1; }
+    const nx = dx / d, ny = dy / d;
+    const ma = a.r * a.r, mb = b.r * b.r, ia = mb / (ma + mb), ib = ma / (ma + mb);
+    const ov = Math.min(rs - Math.min(d, rs), Math.min(a.r, b.r) * 0.6) * 0.9;
+    a.x -= nx * ov * ia; a.y -= ny * ov * ia; b.x += nx * ov * ib; b.y += ny * ov * ib;
+    const rv = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
+    if (rv < 0) {
+      const j = -(1 + e) * rv / (1 / ma + 1 / mb);
+      a.vx -= j / ma * nx; a.vy -= j / ma * ny; b.vx += j / mb * nx; b.vy += j / mb * ny;
+      if (this.settings.battle && a.c !== b.c && a.cv <= this.t && b.cv <= this.t && rv < -20 && this.rng() < 0.35) {
+        const na = Math.sqrt(this.teams[a.c] || 1), nb = Math.sqrt(this.teams[b.c] || 1);
+        const w = this.rng() < na / (na + nb) ? a : b, l = w === a ? b : a;
+        this.teams[l.c]--; this.teams[w.c]++;
+        l.c = w.c; l.cv = this.t + 0.3; w.cv = this.t + 0.3;
+        this.emit('convert', l.x, l.y, w.c);
+      }
+    }
+  }
+  solveWalls() {
+    const cells = this.segCells, arcs = this.arcs;
+    for (const b of this.balls) {
+      if (b.dead) continue;
+      if (b.r > 24) { for (const s of this.segs) this.collideSeg(b, s); }
+      else {
+        const cx = Math.floor((b.x - GX0) / SEG_CS), cy = Math.floor((b.y - GY0) / SEG_CS);
+        if (cx >= 0 && cy >= 0 && cx < SEG_COLS && cy < SEG_ROWS) { const cell = cells[cy * SEG_COLS + cx]; for (let k = 0; k < cell.length; k++) this.collideSeg(b, cell[k]); }
+      }
+      for (let k = 0; k < arcs.length; k++) this.collideArc(b, arcs[k]);
+    }
+  }
+  resolve(b, px, py, rr, wvx, wvy, e, fr, nx0, ny0) {
+    let dx = b.x - px, dy = b.y - py;
+    const d2 = dx * dx + dy * dy;
+    if (d2 >= rr * rr) return 0;
+    let d = Math.sqrt(d2), nx, ny;
+    if (d < 1e-6) { nx = nx0; ny = ny0; d = 0; } else { nx = dx / d; ny = dy / d; }
+    const push = rr - d;
+    b.x += nx * push; b.y += ny * push;
+    const rvx = b.vx - wvx, rvy = b.vy - wvy, vn = rvx * nx + rvy * ny;
+    if (vn < 0) {
+      const tx = rvx - vn * nx, ty = rvy - vn * ny, k = 1 - fr;
+      b.vx = wvx + tx * k - e * vn * nx; b.vy = wvy + ty * k - e * vn * ny;
+      return -vn;
+    }
+    return 0;
+  }
+  collideSeg(b, s) {
+    let t = 0;
+    if (s.len2 > 0) { t = ((b.x - s.ax) * (s.bx - s.ax) + (b.y - s.ay) * (s.by - s.ay)) / s.len2; t = t < 0 ? 0 : t > 1 ? 1 : t; }
+    const px = s.ax + (s.bx - s.ax) * t, py = s.ay + (s.by - s.ay) * t, rr = b.r + s.hw;
+    const dx = b.x - px, dy = b.y - py;
+    if (dx * dx + dy * dy >= rr * rr) return;
+    const wvx = s.vax + (s.vbx - s.vax) * t + s.surf * s.ux, wvy = s.vay + (s.vby - s.vay) * t + s.surf * s.uy;
+    const vn = this.resolve(b, px, py, rr, wvx, wvy, s.e, s.fr, -s.uy, s.ux);
+    if (vn > 80) this.emit('hit', b.x, b.y, b.c, { v: vn });
+  }
+  collideArc(b, a) {
+    const dx = b.x - a.cx, dy = b.y - a.cy, dist = Math.sqrt(dx * dx + dy * dy), rr = b.r + a.hw;
+    if (b.held && a.full && a.owner === this.container) {
+      // a ball that started inside the main circle can never be squeezed out of it
+      const lim = a.R - rr;
+      if (dist <= lim) return;
+      const nx = dist > 1e-6 ? dx / dist : 1, ny = dist > 1e-6 ? dy / dist : 0;
+      b.x = a.cx + nx * lim; b.y = a.cy + ny * lim;
+      const wvx = -a.omega * ny * a.R, wvy = a.omega * nx * a.R, rvx = b.vx - wvx, rvy = b.vy - wvy, vn = rvx * nx + rvy * ny;
+      if (vn > 0) {
+        b.vx -= (1 + a.e) * vn * nx; b.vy -= (1 + a.e) * vn * ny;
+        if (vn > 80) this.emit('hit', b.x, b.y, b.c, { v: vn });
+        if (a.owner.onHit) a.owner.onHit(b, vn, this);
+      }
+      return;
+    }
+    if (Math.abs(dist - a.R) >= rr) return;
+    let px, py;
+    const ang = Math.atan2(dy, dx);
+    let rel = ang - a.a0; rel = ((rel % TAU) + TAU) % TAU;
+    if (a.full || rel <= a.span) {
+      const k = dist > 1e-6 ? a.R / dist : 0; px = a.cx + dx * k; py = a.cy + dy * k;
+    } else {
+      const e0x = a.cx + Math.cos(a.a0) * a.R, e0y = a.cy + Math.sin(a.a0) * a.R;
+      const e1x = a.cx + Math.cos(a.a0 + a.span) * a.R, e1y = a.cy + Math.sin(a.a0 + a.span) * a.R;
+      if ((b.x - e0x) ** 2 + (b.y - e0y) ** 2 < (b.x - e1x) ** 2 + (b.y - e1y) ** 2) { px = e0x; py = e0y; } else { px = e1x; py = e1y; }
+    }
+    const wvx = -a.omega * (py - a.cy), wvy = a.omega * (px - a.cx);
+    const inside = dist < a.R;
+    const vn = this.resolve(b, px, py, rr, wvx, wvy, a.e, a.fr, inside ? -dx / (dist || 1) : dx / (dist || 1), inside ? -dy / (dist || 1) : dy / (dist || 1));
+    if (vn > 0) {
+      if (vn > 80) this.emit('hit', b.x, b.y, b.c, { v: vn });
+      if (a.owner && a.owner.onHit) a.owner.onHit(b, vn, this);
+    }
+  }
+
+  runSensors() {
+    const list = this.sensorList; list.length = 0;
+    for (const p of this.parts) p.sensors(this, list);
+    if (!list.length) return;
+    const balls = this.balls, n0 = balls.length;
+    for (let k = 0; k < list.length; k++) {
+      const s = list[k], bit = 1 << (k % 30);
+      let len2 = 0;
+      if (s.kind === 'seg') len2 = (s.bx - s.ax) ** 2 + (s.by - s.ay) ** 2;
+      for (let i = 0; i < n0; i++) {
+        const b = balls[i];
+        if (b.dead) continue;
+        // 1 = inside, 2 = just outside (keeps its current state), 0 = clearly outside
+        let state = 0;
+        if (s.kind === 'seg') {
+          let t = len2 ? ((b.x - s.ax) * (s.bx - s.ax) + (b.y - s.ay) * (s.by - s.ay)) / len2 : 0;
+          t = t < 0 ? 0 : t > 1 ? 1 : t;
+          const dx = b.x - (s.ax + (s.bx - s.ax) * t), dy = b.y - (s.ay + (s.by - s.ay) * t), d2 = dx * dx + dy * dy;
+          state = d2 < b.r * b.r ? 1 : d2 < 6.25 * b.r * b.r ? 2 : 0;
+        } else if (s.kind === 'rect') {
+          state = b.x > s.x0 && b.x < s.x1 && b.y > s.y0 && b.y < s.y1 ? 1
+            : b.x > s.x0 - b.r * 2 && b.x < s.x1 + b.r * 2 && b.y > s.y0 - b.r * 2 && b.y < s.y1 + b.r * 2 ? 2 : 0;
+        } else {
+          const d = Math.sqrt((b.x - s.cx) ** 2 + (b.y - s.cy) ** 2), m = b.r * 2;
+          if (s.kind === 'circle') state = d < s.r ? 1 : d < s.r + m ? 2 : 0;
+          else state = d > s.r ? 1 : d > s.r - m ? 2 : 0;
+        }
+        if (state === 1) {
+          if (!(b.m & bit)) {
+            b.m |= bit;
+            if (s.once) { if (b.u & bit) continue; b.u |= bit; }
+            s.fn(b);
+          }
+        } else if (state === 0 && (b.m & bit)) b.m &= ~bit;
+      }
+    }
+  }
+
+  cleanup() {
+    const bs = this.balls;
+    let w = 0;
+    for (let i = 0; i < bs.length; i++) {
+      const b = bs[i];
+      if (b.dead || b.x < GX0 + 20 || b.x > GX0 + GW - 20 || b.y > GY0 + GH - 20 || b.y < GY0 + 20) continue;
+      bs[w++] = b;
+    }
+    bs.length = w;
+  }
+
+  fill() {
+    if (!this.container) return 0;
+    let a = 0; for (const b of this.balls) a += b.r * b.r;
+    const R = this.container.cfg.radius; return a / (R * R);
+  }
+  colorCounts() {
+    const counts = new Array(this.pal.length).fill(0);
+    for (const b of this.balls) counts[b.c % this.pal.length]++;
+    return counts;
+  }
+  checkEnd() {
+    const s = this.settings;
+    if (this.finale) {
+      const dur = this.finale.type === 'burst' ? 4.5 : 2.5;
+      if (this.t - this.finale.t0 > dur) this.ended = true;
+      return;
+    }
+    if (s.battle && this.t > 1 && this.balls.length > 1 && (this.steps % 24 === 0)) {
+      const c0 = this.balls[0].c;
+      if (this.balls.every(b => b.c === c0)) { this.winner = c0; this.startFinale('winner'); return; }
+    }
+    if (s.finale === 'none') return;
+    if (this.balls.length >= this.cap || (s.fillLimit > 0 && this.steps % 12 === 0 && this.fill() >= s.fillLimit)) this.startFinale('cap');
+  }
+  startFinale(reason) {
+    let type = this.settings.finale;
+    if (type === 'none') type = 'freeze';
+    this.finale = { t0: this.t, reason, type, count: this.balls.length };
+    if (reason !== 'winner' && this.settings.battle) {
+      const counts = this.colorCounts(); let best = 0;
+      counts.forEach((v, i) => { if (v > counts[best]) best = i; });
+      this.winner = best;
+    }
+    if (type === 'burst') {
+      for (const p of this.parts) if (p.burstable) { p.broken = true; if (p.onBreak) p.onBreak(this); }
+      const cx = this.container ? this.container.cfg.x : WORLD_W / 2, cy = this.container ? this.container.cfg.y : WORLD_H / 2;
+      for (const b of this.balls) {
+        const dx = b.x - cx, dy = b.y - cy, d = Math.hypot(dx, dy) || 1;
+        b.vx += dx / d * (80 + this.rng() * 120); b.vy += dy / d * (80 + this.rng() * 120);
+      }
+    }
+    this.emit('finale', WORLD_W / 2, WORLD_H / 2, 0, { kind: type });
+  }
+}
+
+/* ==========================================================================
+   Rendering
+   ========================================================================== */
+const STAGE_THEMES = {
+  light: { bg: '#ffffff', ink: '#16161a', steel: '#76737f', steelDark: '#55525e', steelLight: '#a4a1ad', flap: '#9b4a35', muted: '#8a8794', label: '#ffffff', chipBg: 'rgba(255,255,255,0.9)', shadow: 'rgba(0,0,0,0.18)' },
+  dark: { bg: '#0f0f13', ink: '#ececf2', steel: '#8d8a97', steelDark: '#6a6774', steelLight: '#bdbac6', flap: '#c4644b', muted: '#9b98a6', label: '#ffffff', chipBg: 'rgba(20,20,26,0.85)', shadow: 'rgba(0,0,0,0.5)' }
+};
+const spriteCache = new Map();
+function ballSprite(color, px) {
+  const size = Math.max(4, Math.min(256, Math.round(px)));
+  const key = color + '|' + size;
+  let c = spriteCache.get(key);
+  if (c) return c;
+  c = document.createElement('canvas'); c.width = c.height = size + 2;
+  const g = c.getContext('2d'), r = size / 2, m = r + 1;
+  const grad = g.createRadialGradient(m - r * 0.35, m - r * 0.4, r * 0.08, m, m, r);
+  grad.addColorStop(0, shade(color, 0.6)); grad.addColorStop(0.35, shade(color, 0.12)); grad.addColorStop(1, shade(color, -0.32));
+  g.fillStyle = grad; g.beginPath(); g.arc(m, m, r, 0, TAU); g.fill();
+  if (spriteCache.size > 600) spriteCache.clear();
+  spriteCache.set(key, c);
+  return c;
+}
+
+const fx = [];
+function addFx(e) { if (fx.length < 160) fx.push(e); }
+
+function roundedBar(ctx, ax, ay, bx, by, hw, fill, edge) {
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = edge; ctx.lineWidth = hw * 2 + 2; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+  ctx.strokeStyle = fill; ctx.lineWidth = hw * 2; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+}
+function pivot(ctx, x, y, r, th) {
+  ctx.fillStyle = th.steelLight; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+  ctx.fillStyle = th.steelDark; ctx.beginPath(); ctx.arc(x, y, r * 0.4, 0, TAU); ctx.fill();
+}
+function multLabel(ctx, text, x, y, color, th, size = 13) {
+  ctx.font = `800 ${size}px "Bricolage Grotesque", system-ui, sans-serif`;
+  const w = ctx.measureText(text).width + 10, h = size + 6;
+  ctx.fillStyle = color; ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(x - w / 2, y - h / 2, w, h, h / 2); else ctx.rect(x - w / 2, y - h / 2, w, h);
+  ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, x, y + 0.5);
+}
+
+function drawPart(ctx, p, sim, th, view) {
+  const c = p.cfg, t = sim.t, pal = sim.pal, labels = sim.settings.showLabels;
+  switch (c.type) {
+    case 'container': {
+      if (p.broken) {
+        if (!p.frags) return;
+        const dt = t - p.breakT, alpha = Math.max(0, 1 - dt / 1.6);
+        if (alpha <= 0) return;
+        ctx.globalAlpha = alpha; ctx.strokeStyle = th.ink; ctx.lineWidth = c.thickness; ctx.lineCap = 'round';
+        for (const f of p.frags) {
+          const ox = f.vx * dt, oy = f.vy * dt + 200 * dt * dt * (sim.settings.gravity ? 1 : 0);
+          ctx.save(); ctx.translate(c.x + ox, c.y + oy);
+          const mid = f.a + f.span / 2; ctx.translate(Math.cos(mid) * c.radius, Math.sin(mid) * c.radius); ctx.rotate(f.spin * dt);
+          ctx.translate(-Math.cos(mid) * c.radius, -Math.sin(mid) * c.radius);
+          ctx.beginPath(); ctx.arc(0, 0, c.radius, f.a, f.a + f.span); ctx.stroke(); ctx.restore();
+        }
+        ctx.globalAlpha = 1; return;
+      }
+      ctx.strokeStyle = th.ink; ctx.lineWidth = c.thickness; ctx.lineCap = 'round';
+      for (const a of p.arcs(t)) { ctx.beginPath(); ctx.arc(a.cx, a.cy, a.R, a.a0, a.a0 + a.span); ctx.stroke(); }
+      return;
+    }
+    case 'wall': case 'spinner': {
+      const ss = p.segs(t); if (!ss) return;
+      for (const s of ss) roundedBar(ctx, s.ax, s.ay, s.bx, s.by, s.hw, th.steel, th.steelDark);
+      if (c.type === 'spinner') pivot(ctx, c.x, c.y, Math.max(3, c.thickness * 0.45), th);
+      return;
+    }
+    case 'conveyor': {
+      const ss = p.segs(t); if (!ss) return;
+      const s = ss[0], hw = s.hw;
+      roundedBar(ctx, s.ax, s.ay, s.bx, s.by, hw, th.steelDark, th.steelDark);
+      const L = Math.hypot(s.bx - s.ax, s.by - s.ay), gap = 14, off = ((c.speed * t) % gap + gap) % gap;
+      ctx.strokeStyle = th.steelLight; ctx.lineWidth = 2; ctx.lineCap = 'butt';
+      ctx.beginPath();
+      for (let d = off; d < L; d += gap) {
+        const x = s.ax + s.ux * d, y = s.ay + s.uy * d;
+        ctx.moveTo(x - s.uy * hw * 0.7, y + s.ux * hw * 0.7); ctx.lineTo(x + s.uy * hw * 0.7, y - s.ux * hw * 0.7);
+      }
+      ctx.stroke();
+      pivot(ctx, s.ax, s.ay, hw * 0.8, th); pivot(ctx, s.bx, s.by, hw * 0.8, th);
+      return;
+    }
+    case 'crusher': {
+      const s = p.state(t), H = c.boxH, hw = s.hw;
+      const bars = [[s.topX, s.yTop, s.topX + c.reach, s.yTop, 1], [s.botX - c.reach, s.yBot, s.botX, s.yBot, -1]];
+      const flaps = [[s.topX, s.yTop, s.topX + Math.cos(s.aTop) * H, s.yTop + Math.sin(s.aTop) * H], [s.botX, s.yBot, s.botX + Math.cos(s.aBot) * H, s.yBot + Math.sin(s.aBot) * H]];
+      for (const f of flaps) { roundedBar(ctx, f[0], f[1], f[2], f[3], hw, th.steel, th.steelDark); ctx.strokeStyle = th.flap; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(f[0], f[1]); ctx.lineTo(f[2], f[3]); ctx.stroke(); }
+      for (const b of bars) {
+        ctx.fillStyle = th.steelDark; ctx.fillRect(b[0], b[1] - hw - 1, b[2] - b[0], hw * 2 + 2);
+        ctx.fillStyle = th.steel; ctx.fillRect(b[0], b[1] - hw, b[2] - b[0], hw * 2);
+        ctx.fillStyle = th.steelLight; ctx.fillRect(b[0], b[1] - hw, b[2] - b[0], 2);
+        ctx.fillStyle = th.steelDark;
+        for (let x = b[0] + 16; x < b[2] - 6; x += 22) { ctx.beginPath(); ctx.arc(x, b[1] + hw * 0.35, 1.1, 0, TAU); ctx.fill(); }
+      }
+      if (c.label && labels) {
+        ctx.font = `700 ${Math.max(7, hw * 0.85)}px "JetBrains Mono", ui-monospace, monospace`; ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+        ctx.fillText(c.label, s.topX + 12, s.yTop + 0.5);
+      }
+      pivot(ctx, s.topX, s.yTop, hw * 0.75, th); pivot(ctx, s.botX, s.yBot, hw * 0.75, th);
+      return;
+    }
+    case 'press': {
+      const h = p.headY(t).y, w = c.width / 2;
+      ctx.fillStyle = th.steelDark; ctx.fillRect(c.x - 5, c.y - 70, 10, h - c.y + 40);
+      ctx.fillRect(c.x - w - 14, c.y - 82, c.width + 28, 12);
+      ctx.fillStyle = th.steelDark; ctx.fillRect(c.x - w - 5, h - 35, c.width + 10, 40);
+      ctx.fillStyle = th.steel; ctx.fillRect(c.x - w - 4, h - 34, c.width + 8, 38);
+      ctx.fillStyle = th.flap; ctx.fillRect(c.x - w - 4, h + 1, c.width + 8, 3);
+      if (labels) multLabel(ctx, X + c.factor, c.x, h - 16, pal[sim.colorFor(0, c.colorMode === 'keep' ? 'keep' : 'fixed', c.colorMode === 'fixed' ? c.color : 0)] || th.steelDark, th, 11);
+      return;
+    }
+    case 'spiral': {
+      const ss = p.segs(t); if (!ss) return;
+      ctx.strokeStyle = th.ink; ctx.lineWidth = c.thickness; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      ctx.beginPath(); ctx.moveTo(ss[0].ax, ss[0].ay); for (const s of ss) ctx.lineTo(s.bx, s.by); ctx.stroke();
+      const gcol = c.gateColorMode === 'fixed' ? pal[c.gateColor % pal.length] : '#f08a1c';
+      for (const g of p.gateGeom(t)) {
+        ctx.strokeStyle = gcol; ctx.globalAlpha = 0.85; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(g.ax, g.ay); ctx.lineTo(g.bx, g.by); ctx.stroke(); ctx.globalAlpha = 1;
+        if (labels) multLabel(ctx, X + c.gateFactor, (g.ax + g.bx) / 2, (g.ay + g.by) / 2, gcol, th, 10);
+      }
+      return;
+    }
+    case 'pegs': {
+      if (p.broken) return;
+      ctx.fillStyle = th.steelDark;
+      for (const [x, y] of p.pegs) { ctx.beginPath(); ctx.arc(x, y, c.pegR, 0, TAU); ctx.fill(); }
+      return;
+    }
+    case 'slots': {
+      if (p.broken) return;
+      const g = p.geom();
+      for (const s of p.segs()) roundedBar(ctx, s.ax, s.ay, s.bx, s.by, s.hw, th.steel, th.steelDark);
+      for (let i = 0; i < g.n; i++) {
+        const m = p.mult[i], col = c.colorMode === 'slot' ? pal[i % pal.length] : th.steelDark;
+        ctx.fillStyle = col; ctx.globalAlpha = 0.1; ctx.fillRect(g.x0 + i * g.w + 3, g.top, g.w - 6, g.bot - g.top); ctx.globalAlpha = 1;
+        if (labels) multLabel(ctx, m === 0 ? X + '0' : X + m, g.x0 + (i + 0.5) * g.w, g.bot - 16, m === 0 ? th.steelDark : col, th, 14);
+      }
+      return;
+    }
+    case 'zone': {
+      if (!c.visible && !view.edit) return;
+      const col = c.action === 'destroy' ? '#55525e' : c.colorMode === 'fixed' ? pal[c.color % pal.length] : '#f08a1c';
+      ctx.save(); ctx.globalAlpha = c.visible ? 1 : 0.45; ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 2; ctx.setLineDash([5, 4]);
+      ctx.beginPath();
+      if (c.shape === 'rect') ctx.rect(c.x - c.w / 2, c.y - c.h / 2, c.w, c.h); else ctx.arc(c.x, c.y, c.r, 0, TAU);
+      ctx.stroke(); ctx.globalAlpha *= 0.1; ctx.fill(); ctx.restore();
+      if (labels && c.visible) {
+        const txt = c.label || (c.action === 'multiply' || c.action === 'teleport' ? X + c.factor : c.action === 'destroy' ? 'out' : c.action === 'spawn' ? '+' + c.factor : '');
+        if (txt) multLabel(ctx, txt, c.x, c.shape === 'rect' ? c.y : c.y, col, th, 12);
+      }
+      return;
+    }
+    case 'gate': {
+      const col = c.colorMode === 'fixed' ? pal[c.color % pal.length] : '#f08a1c';
+      ctx.save(); ctx.strokeStyle = col; ctx.globalAlpha = 0.35; ctx.lineWidth = 8; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(c.x1, c.y1); ctx.lineTo(c.x2, c.y2); ctx.stroke(); ctx.globalAlpha = 1; ctx.lineWidth = 2; ctx.stroke(); ctx.restore();
+      if (labels) multLabel(ctx, c.label || X + c.factor, (c.x1 + c.x2) / 2, (c.y1 + c.y2) / 2, col, th, 13);
+      return;
+    }
+    case 'force': {
+      if (!c.visible && !view.edit) return;
+      ctx.save(); ctx.globalAlpha = 0.12; ctx.fillStyle = th.steel; ctx.fillRect(c.x - c.w / 2, c.y - c.h / 2, c.w, c.h);
+      ctx.globalAlpha = 0.45; ctx.strokeStyle = th.steelDark; ctx.lineWidth = 2;
+      const L = Math.hypot(c.fx, c.fy) || 1, ux = c.fx / L, uy = c.fy / L, off = (t * 60) % 30;
+      ctx.beginPath();
+      for (let yy = c.y - c.h / 2 + 15; yy < c.y + c.h / 2; yy += 30) for (let xx = c.x - c.w / 2 + 15; xx < c.x + c.w / 2; xx += 30) {
+        const px = xx + ux * (off - 15), py = yy + uy * (off - 15);
+        ctx.moveTo(px - ux * 5 - uy * 5, py - uy * 5 + ux * 5); ctx.lineTo(px + ux * 5, py + uy * 5); ctx.lineTo(px - ux * 5 + uy * 5, py - uy * 5 - ux * 5);
+      }
+      ctx.stroke(); ctx.restore();
+      return;
+    }
+    case 'spawner': {
+      if (!view.edit) return;
+      ctx.save(); ctx.strokeStyle = pal[c.color % pal.length]; ctx.fillStyle = pal[c.color % pal.length]; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(c.x, c.y, 10, 0, TAU); ctx.stroke();
+      const a = c.angle * DEG; ctx.beginPath(); ctx.moveTo(c.x, c.y); ctx.lineTo(c.x + Math.cos(a) * 22, c.y + Math.sin(a) * 22); ctx.stroke();
+      ctx.beginPath(); ctx.arc(c.x, c.y, 4, 0, TAU); ctx.fill(); ctx.restore();
+      return;
+    }
+  }
+}
+
+function drawFx(ctx, sim, th, now) {
+  for (let i = fx.length - 1; i >= 0; i--) {
+    const f = fx[i], age = now - f.t0, life = f.life;
+    if (age > life) { fx.splice(i, 1); continue; }
+    const k = age / life;
+    if (f.kind === 'ring') {
+      ctx.save(); ctx.globalAlpha = (1 - k) * 0.6; ctx.strokeStyle = f.color; ctx.lineWidth = 3 * (1 - k) + 0.5;
+      ctx.beginPath(); ctx.arc(f.x, f.y, f.r0 + (f.r1 - f.r0) * easeInOut(k), 0, TAU); ctx.stroke(); ctx.restore();
+    } else if (f.kind === 'dots') {
+      ctx.save(); ctx.globalAlpha = 1 - k; ctx.fillStyle = f.color;
+      for (const d of f.dots) { ctx.beginPath(); ctx.arc(f.x + d[0] * age, f.y + d[1] * age, 1.6, 0, TAU); ctx.fill(); }
+      ctx.restore();
+    } else if (f.kind === 'text') {
+      ctx.save(); ctx.globalAlpha = 1 - k * k;
+      ctx.font = `800 ${16 + 6 * (1 - k)}px "Bricolage Grotesque", system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.lineWidth = 4; ctx.strokeStyle = th.bg; ctx.strokeText(f.text, f.x, f.y - 24 * k); ctx.fillStyle = f.color; ctx.fillText(f.text, f.x, f.y - 24 * k);
+      ctx.restore();
+    }
+  }
+}
+
+function drawMagnifiers(ctx, canvas, now, cam) {
+  for (const f of fx) {
+    if (f.kind !== 'mag') continue;
+    const age = now - f.t0; if (age > f.life) continue;
+    const a = age < 0.1 ? age / 0.1 : age > f.life - 0.15 ? (f.life - age) / 0.15 : 1;
+    const sx = (f.x * cam.s + cam.ox), sy = (f.y * cam.s + cam.oy), R = 44 * cam.s * (0.8 + 0.2 * a), zoom = 2.2, src = R / zoom;
+    ctx.save(); ctx.globalAlpha = a;
+    ctx.beginPath(); ctx.arc(sx, sy, R, 0, TAU); ctx.closePath(); ctx.save(); ctx.clip();
+    ctx.drawImage(canvas, sx - src, sy - src, src * 2, src * 2, sx - R, sy - R, R * 2, R * 2);
+    ctx.restore();
+    ctx.lineWidth = 2 * cam.s; ctx.strokeStyle = 'rgba(120,120,130,0.9)'; ctx.stroke();
+    ctx.restore();
+  }
+}
+
+function camera(sim, scale) {
+  let z = 1;
+  if (sim.finale && sim.finale.type === 'burst') z = 1 - 0.28 * easeInOut(clamp((sim.t - sim.finale.t0) / 1.6, 0, 1));
+  const s = scale * z;
+  return { s, ox: (WORLD_W * scale - WORLD_W * s) / 2, oy: (WORLD_H * scale - WORLD_H * s) / 2 };
+}
+
+function drawScene(ctx, sim, view) {
+  const th = STAGE_THEMES[sim.settings.theme] || STAGE_THEMES.light;
+  const scale = view.scale, cam = camera(sim, scale);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = th.bg; ctx.fillRect(0, 0, WORLD_W * scale, WORLD_H * scale);
+  ctx.setTransform(cam.s, 0, 0, cam.s, cam.ox, cam.oy);
+  for (const p of sim.parts) if (p.cfg.type === 'zone' || p.cfg.type === 'force' || p.cfg.type === 'gate') drawPart(ctx, p, sim, th, view);
+  const pal = sim.pal, px = cam.s;
+  for (const b of sim.balls) {
+    const spr = ballSprite(pal[b.c % pal.length], b.r * 2 * px);
+    ctx.drawImage(spr, b.x - b.r - 1 / px, b.y - b.r - 1 / px, b.r * 2 + 2 / px, b.r * 2 + 2 / px);
+  }
+  for (const p of sim.parts) if (!(p.cfg.type === 'zone' || p.cfg.type === 'force' || p.cfg.type === 'gate')) drawPart(ctx, p, sim, th, view);
+  if (view.fx) drawFx(ctx, sim, th, sim.t);
+  if (view.edit) drawEditOverlay(ctx, sim, view);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  if (view.fx) drawMagnifiers(ctx, ctx.canvas, sim.t, cam);
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  if (view.overlay) drawOverlay(ctx, sim, th);
+}
+
+function wrapText(ctx, text, maxW) {
+  const words = text.split(/\s+/), lines = []; let line = '';
+  for (const w of words) { const test = line ? line + ' ' + w : w; if (ctx.measureText(test).width > maxW && line) { lines.push(line); line = w; } else line = test; }
+  if (line) lines.push(line);
+  return lines.slice(0, 3);
+}
+
+function drawOverlay(ctx, sim, th) {
+  const s = sim.settings;
+  let capBottom = 30;
+  if (s.caption) {
+    ctx.font = '800 30px "Bricolage Grotesque", system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    const lines = wrapText(ctx, s.caption, WORLD_W - 60);
+    lines.forEach((ln, i) => {
+      ctx.lineWidth = 6; ctx.lineJoin = 'round'; ctx.strokeStyle = th.bg; ctx.strokeText(ln, WORLD_W / 2, 44 + i * 36);
+      ctx.fillStyle = th.ink; ctx.fillText(ln, WORLD_W / 2, 44 + i * 36);
+    });
+    capBottom = 44 + lines.length * 36;
+  }
+  const pos = s.counters;
+  if (pos && pos !== 'off') {
+    const n = sim.finale && sim.finale.type === 'burst' ? sim.finale.count : sim.balls.length;
+    const corner = pos === 'corner';
+    const cx = corner ? 22 : WORLD_W / 2, base = pos === 'bottom' ? 872 : corner ? capBottom + 40 : capBottom + 58;
+    ctx.textAlign = corner ? 'left' : 'center'; ctx.textBaseline = 'alphabetic';
+    ctx.font = `800 ${corner ? 36 : 54}px "Bricolage Grotesque", system-ui, sans-serif`; ctx.fillStyle = th.ink;
+    ctx.lineWidth = 6; ctx.strokeStyle = th.bg; ctx.strokeText(fmt(n), cx, base); ctx.fillText(fmt(n), cx, base);
+    ctx.font = '600 15px "Instrument Sans", system-ui, sans-serif'; ctx.fillStyle = th.muted;
+    ctx.fillText(n === 1 ? 'ball' : 'balls', cx, base + 20);
+    const counts = sim.colorCounts().map((v, i) => [v, i]).filter(v => v[0] > 0).sort((a, b) => b[0] - a[0]).slice(0, 6);
+    if (counts.length > 1 || s.battle) {
+      ctx.font = '700 13px "JetBrains Mono", ui-monospace, monospace';
+      const items = counts.map(([v, i]) => ({ v: fmt(v), i, w: ctx.measureText(fmt(v)).width + 24 }));
+      const total = items.reduce((a, b) => a + b.w + 8, -8);
+      let x = corner ? cx : WORLD_W / 2 - total / 2, y = base + 32;
+      for (const it of items) {
+        ctx.fillStyle = th.chipBg; ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(x, y, it.w, 22, 11); else ctx.rect(x, y, it.w, 22); ctx.fill();
+        ctx.fillStyle = sim.pal[it.i]; ctx.beginPath(); ctx.arc(x + 11, y + 11, 5, 0, TAU); ctx.fill();
+        ctx.fillStyle = th.ink; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(it.v, x + 20, y + 11.5);
+        if (corner) y += 28; else x += it.w + 8;
+      }
+    }
+    ctx.font = '700 14px "JetBrains Mono", ui-monospace, monospace'; ctx.textAlign = 'right'; ctx.textBaseline = 'top'; ctx.fillStyle = th.muted;
+    const secs = sim.t, mm = Math.floor(secs / 60), ss = (secs % 60).toFixed(1).padStart(4, '0');
+    ctx.fillText(`${mm}:${ss}`, WORLD_W - 18, 18);
+  }
+  if (sim.finale) {
+    const age = sim.t - sim.finale.t0, a = clamp(age / 0.4, 0, 1);
+    let text;
+    if (sim.winner >= 0 && s.battle) text = `${colorName(sim.pal[sim.winner]).toUpperCase()} WINS`;
+    else text = `${fmt(sim.finale.count)} BALLS!`;
+    ctx.save(); ctx.globalAlpha = a; ctx.translate(WORLD_W / 2, 470); ctx.scale(0.8 + 0.2 * easeInOut(a), 0.8 + 0.2 * easeInOut(a));
+    ctx.font = '800 48px "Bricolage Grotesque", system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const w = ctx.measureText(text).width + 48;
+    ctx.fillStyle = sim.winner >= 0 && s.battle ? sim.pal[sim.winner] : th.ink;
+    ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(-w / 2, -40, w, 80, 40); else ctx.rect(-w / 2, -40, w, 80); ctx.fill();
+    ctx.fillStyle = sim.winner >= 0 && s.battle ? '#fff' : th.bg; ctx.fillText(text, 0, 2);
+    ctx.restore();
+  }
+}
+
+/* ==========================================================================
+   Edit overlay and hit testing
+   ========================================================================== */
+function partHandles(cfg) {
+  const T = PART_TYPES[cfg.type], spec = T.handles || [['x', 'y']];
+  return spec.map(h => h[0] === 'mid'
+    ? { kind: 'mid', x: (cfg.x1 + cfg.x2) / 2, y: (cfg.y1 + cfg.y2) / 2 }
+    : { kind: h[2] || 'main', kx: h[0], ky: h[1], x: cfg[h[0]], y: cfg[h[1]] });
+}
+function drawEditOverlay(ctx, sim, view) {
+  for (const cfg of view.sceneParts) {
+    const sel = cfg.id === view.selectedId, hs = partHandles(cfg);
+    for (const h of hs) {
+      if (h.kind === 'target') {
+        const main = hs[0];
+        ctx.save(); ctx.setLineDash([4, 4]); ctx.strokeStyle = sel ? '#2156d9' : 'rgba(33,86,217,0.4)'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(main.x, main.y); ctx.lineTo(h.x, h.y); ctx.stroke(); ctx.restore();
+      }
+      ctx.beginPath(); ctx.arc(h.x, h.y, h.kind === 'main' || h.kind === 'mid' ? 7 : 5.5, 0, TAU);
+      ctx.fillStyle = sel ? '#2156d9' : 'rgba(255,255,255,0.92)'; ctx.fill();
+      ctx.lineWidth = 2; ctx.strokeStyle = sel ? '#ffffff' : '#2156d9'; ctx.stroke();
+    }
+  }
+}
+
+/* ==========================================================================
+   Sound
+   ========================================================================== */
+const audio = {
+  ctx: null, master: null, recDest: null, enabled: true, lastHit: 0, hitsThisSec: 0, secStart: 0,
+  ensure() {
+    if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume(); return true; }
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return false;
+    try {
+      this.ctx = new AC();
+      this.master = this.ctx.createGain(); this.master.gain.value = 0.55; this.master.connect(this.ctx.destination);
+      try { this.recDest = this.ctx.createMediaStreamDestination(); this.master.connect(this.recDest); } catch (e) { this.recDest = null; }
+      return true;
+    } catch (e) { return false; }
+  },
+  tone(freq, dur, vol, type = 'triangle', slide = 0) {
+    if (!this.ctx || !this.enabled) return;
+    const t = this.ctx.currentTime, o = this.ctx.createOscillator(), g = this.ctx.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t); if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, freq * slide), t + dur);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(this.master); o.start(t); o.stop(t + dur + 0.02);
+  },
+  noise(dur, vol, freq = 900) {
+    if (!this.ctx || !this.enabled) return;
+    const t = this.ctx.currentTime, len = Math.floor(this.ctx.sampleRate * dur), buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    const src = this.ctx.createBufferSource(), f = this.ctx.createBiquadFilter(), g = this.ctx.createGain();
+    src.buffer = buf; f.type = 'lowpass'; f.frequency.value = freq; g.gain.value = vol;
+    src.connect(f); f.connect(g); g.connect(this.master); src.start(t);
+  },
+  note(i) { const scale = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24, 26]; return 330 * Math.pow(2, scale[((i % scale.length) + scale.length) % scale.length] / 12); },
+  play(events) {
+    if (!this.ctx || !this.enabled || !events.length) return;
+    const now = this.ctx.currentTime;
+    if (now - this.secStart > 0.25) { this.secStart = now; this.hitsThisSec = 0; }
+    let pops = 0;
+    for (const e of events) {
+      if (e.type === 'hit') { if (this.hitsThisSec < 6 && now - this.lastHit > 0.02) { this.hitsThisSec++; this.lastHit = now; this.tone(this.note(e.c), 0.06, Math.min(0.12, e.v / 4000), 'sine'); } }
+      else if ((e.type === 'multiply' || e.type === 'grow' || e.type === 'convert') && pops < 2) { pops++; this.tone(this.note(e.c) * 2, 0.09, 0.09, 'triangle', 1.5); }
+      else if (e.type === 'crush') { this.noise(0.18, 0.35, 700); this.tone(110, 0.22, 0.3, 'sine', 0.5); }
+      else if (e.type === 'press') { if (pops < 2) { pops++; this.tone(160, 0.12, 0.2, 'square', 0.5); } }
+      else if (e.type === 'finale') { this.noise(0.8, 0.4, 1600); this.tone(220, 0.9, 0.25, 'sawtooth', 3); }
+    }
+  }
+};
+
+/* ==========================================================================
+   Files: downloads capability with a plain-browser fallback
+   ========================================================================== */
+let downloadsPromise = null;
+function getDownloads() {
+  if (!downloadsPromise) downloadsPromise = (window.claude && typeof window.claude.use === 'function') ? window.claude.use('downloads').catch(() => null) : Promise.resolve(null);
+  return downloadsPromise;
+}
+async function saveFile(filename, data) {
+  const dl = await getDownloads();
+  if (dl) {
+    try { await dl.save({ filename, data }); toast(`Saved ${filename}`); }
+    catch (e) {
+      const code = e && e.code;
+      if (code === 'declined') toast('Save cancelled.');
+      else if (code === 'rate_limited') toast('Another save is waiting for your answer. Try again in a moment.');
+      else toast('Saving files is not available here.');
+    }
+    return;
+  }
+  if (window.claude && typeof window.claude.use === 'function') { toast('Saving files is not available in this view.'); return; }
+  const blob = data instanceof Blob ? data : new Blob([data], { type: 'application/json' });
+  const url = URL.createObjectURL(blob), a = document.createElement('a');
+  a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  toast(`Saved ${filename}`);
+}
+
+/* ==========================================================================
+   Storage (per-browser saves)
+   ========================================================================== */
+const store = {
+  get(key, fallback) { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; } },
+  set(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); return true; } catch (e) { return false; } }
+};
+const K_CURRENT = 'bml:current', K_SAVES = 'bml:saves', K_UI = 'bml:ui';
+
+/* ==========================================================================
+   App
+   ========================================================================== */
+const $ = id => document.getElementById(id);
+const canvas = $('stage'), ctx = canvas.getContext('2d');
+const ICONS = {
+  play: '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 2.5v11l9-5.5z"/></svg>',
+  pause: '<svg viewBox="0 0 16 16" fill="currentColor"><rect x="3.5" y="2.5" width="3" height="11" rx="1"/><rect x="9.5" y="2.5" width="3" height="11" rx="1"/></svg>',
+  restart: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 8a5 5 0 1 0 1.6-3.7"/><path d="M3 2.5v3h3"/></svg>',
+  edit: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 1.5v13M1.5 8h13"/><path d="M8 1.5l-2 2M8 1.5l2 2M8 14.5l-2-2M8 14.5l2-2M1.5 8l2-2M1.5 8l2 2M14.5 8l-2-2M14.5 8l-2 2" stroke-linecap="round"/></svg>',
+  sound: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2.5 6h2.5l3.5-3v10l-3.5-3H2.5z" fill="currentColor"/><path d="M11 5.5a3.5 3.5 0 0 1 0 5M12.8 3.8a6 6 0 0 1 0 8.4"/></svg>',
+  mute: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2.5 6h2.5l3.5-3v10l-3.5-3H2.5z" fill="currentColor"/><path d="M11 6l3.5 4M14.5 6L11 10"/></svg>',
+  dice: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2.5"/><circle cx="5.5" cy="5.5" r="1" fill="currentColor"/><circle cx="10.5" cy="10.5" r="1" fill="currentColor"/><circle cx="8" cy="8" r="1" fill="currentColor"/></svg>',
+  chev: '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 3.5L10.5 8 6 12.5"/></svg>'
+};
+const GLYPHS = {
+  circle: '<circle cx="8" cy="8" r="5.5" fill="none" stroke="currentColor" stroke-width="1.6"/>',
+  line: '<path d="M3 12L13 4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>',
+  spinner: '<path d="M3 8h10M8 3v10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="8" cy="8" r="1.6" fill="currentColor"/>',
+  conveyor: '<rect x="1.5" y="6" width="13" height="4.5" rx="2.25" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M5 8.2h5M8.5 6.8l1.6 1.4-1.6 1.4" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/>',
+  crusher: '<path d="M2 5h7v6M14 11H7V5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>',
+  press: '<path d="M8 1.5v4M4 5.5h8v3.5H4z" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M2 13.5h12" stroke="currentColor" stroke-width="1.6"/>',
+  spiral: '<path d="M8 8a1 1 0 0 1 1 1 2 2 0 0 1-2 2 3 3 0 0 1-3-3 4 4 0 0 1 4-4 5 5 0 0 1 5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
+  pegs: '<g fill="currentColor"><circle cx="8" cy="3.5" r="1.3"/><circle cx="5.5" cy="7.5" r="1.3"/><circle cx="10.5" cy="7.5" r="1.3"/><circle cx="3" cy="11.5" r="1.3"/><circle cx="8" cy="11.5" r="1.3"/><circle cx="13" cy="11.5" r="1.3"/></g>',
+  slots: '<path d="M2 4v9h12V4M6 7v6M10 7v6" fill="none" stroke="currentColor" stroke-width="1.5"/>',
+  zone: '<circle cx="8" cy="8" r="5.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2.5 2"/>',
+  gate: '<path d="M2 8h12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity=".5"/><path d="M5.5 5.5l5 5M10.5 5.5l-5 5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>',
+  spawner: '<path d="M4 2.5h8l-2.5 4v2h-3v-2z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><circle cx="8" cy="12.5" r="1.8" fill="currentColor"/>',
+  force: '<path d="M8 14V3M4.5 6.5L8 3l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>'
+};
+const glyph = name => `<svg viewBox="0 0 16 16">${GLYPHS[name] || ''}</svg>`;
+
+const app = {
+  scene: null, sim: null, playing: false, editing: false, speed: 1, acc: 0, tab: 'templates', selectedId: null, openId: null,
+  templateKey: null, recording: null, lastFrame: 0, dirtySave: null, rebuildQueued: false, prevScene: null
+};
+
+function loadInitial() {
+  const ui = store.get(K_UI, {});
+  if (ui.tab) app.tab = ui.tab;
+  const saved = store.get(K_CURRENT, null);
+  if (saved && saved.scene) {
+    try { app.scene = normalizeScene(saved.scene); app.templateKey = saved.templateKey || null; } catch (e) { app.scene = null; }
+  }
+  if (!app.scene) { const tpl = TEMPLATES[0]; app.scene = tpl.make(); app.templateKey = tpl.key; }
+  if (ui.uiTheme) document.documentElement.setAttribute('data-theme', ui.uiTheme);
+}
+function persist() {
+  clearTimeout(app.dirtySave);
+  app.dirtySave = setTimeout(() => store.set(K_CURRENT, { scene: app.scene, templateKey: app.templateKey }), 400);
+}
+function saveUi() { store.set(K_UI, { tab: app.tab, uiTheme: document.documentElement.getAttribute('data-theme') || '' }); }
+
+function rebuild(keepPlaying = true) {
+  app.sim = new Sim(app.scene);
+  app.sim.step(); app.sim.events.length = 0; // first step places the starting balls
+  app.acc = 0; fx.length = 0;
+  if (!keepPlaying) setPlaying(false);
+  $('sceneName').textContent = app.scene.settings.name ? '· ' + app.scene.settings.name : '';
+  $('seedBtn').innerHTML = ICONS.dice + `<span>Seed ${app.scene.settings.seed}</span>`;
+  canvas.style.background = (STAGE_THEMES[app.scene.settings.theme] || STAGE_THEMES.light).bg;
+  render();
+}
+function queueRebuild() {
+  if (app.rebuildQueued) return;
+  app.rebuildQueued = true;
+  requestAnimationFrame(() => { app.rebuildQueued = false; rebuild(); });
+}
+function sceneChanged() { persist(); queueRebuild(); }
+
+function setPlaying(on) {
+  app.playing = on;
+  if (on) { audio.ensure(); if (app.editing) setEditing(false); if (app.sim.ended) rebuild(); }
+  $('playBtn').innerHTML = (on ? ICONS.pause : ICONS.play) + `<span>${on ? 'Pause' : 'Play'}</span>`;
+  $('playBtn').setAttribute('aria-label', on ? 'Pause' : 'Play');
+}
+function setEditing(on) {
+  app.editing = on;
+  $('editBtn').setAttribute('aria-pressed', on ? 'true' : 'false');
+  $('stageBox').classList.toggle('editing', on);
+  $('editFlag').hidden = !on;
+  if (on) { setPlaying(false); rebuild(false); }
+  render();
+}
+
+function render() {
+  drawScene(ctx, app.sim, { scale: SCALE, edit: app.editing, selectedId: app.selectedId, sceneParts: app.scene.parts, overlay: true, fx: true });
+}
+
+function frame(now) {
+  const dtReal = Math.min(0.05, (now - (app.lastFrame || now)) / 1000);
+  app.lastFrame = now;
+  if (app.playing && !app.sim.ended) {
+    app.acc += dtReal * app.speed;
+    let steps = 0;
+    const t0 = performance.now();
+    while (app.acc >= DT && steps < 40) {
+      app.sim.step(); app.acc -= DT; steps++;
+      if ((steps & 7) === 0 && performance.now() - t0 > 22) { app.acc = 0; break; }
+    }
+    if (steps >= 40) app.acc = 0;
+    handleEvents(app.sim.events);
+    app.sim.events.length = 0;
+    if (app.sim.ended) onRunEnded();
+  }
+  if (app.playing || app.editing || fx.length) render();
+  requestAnimationFrame(frame);
+}
+
+function handleEvents(events) {
+  if (!events.length) return;
+  audio.play(events);
+  const pal = app.sim.pal, t = app.sim.t;
+  let texts = 0;
+  for (const e of events) {
+    const col = pal[e.c % pal.length];
+    if (e.type === 'crush') {
+      addFx({ kind: 'ring', x: e.x, y: e.y, r0: 10, r1: 110, color: '#9a9aa6', t0: t, life: 0.55 });
+      if (e.magnify) addFx({ kind: 'mag', x: e.x, y: e.y, t0: t, life: 0.55 });
+      addFx({ kind: 'text', text: '+' + e.count, x: e.x, y: e.y - 70, color: col, t0: t, life: 0.9 });
+    } else if (e.type === 'debris' || e.type === 'press') {
+      addFx({ kind: 'dots', x: e.x, y: e.y, color: col, t0: t, life: 0.45, dots: Array.from({ length: 7 }, () => { const a = Math.random() * TAU, s = 40 + Math.random() * 90; return [Math.cos(a) * s, Math.sin(a) * s]; }) });
+    } else if (e.type === 'multiply' && texts < 3 && e.factor > 1) {
+      texts++;
+      addFx({ kind: 'text', text: X + e.factor, x: e.x, y: e.y - 8, color: col, t0: t, life: 0.7 });
+    } else if (e.type === 'finale') {
+      addFx({ kind: 'ring', x: e.x, y: e.y, r0: 40, r1: 520, color: '#9a9aa6', t0: t, life: 1.1 });
+    }
+  }
+}
+
+function onRunEnded() {
+  render();
+  setPlaying(false);
+  if (app.recording) setTimeout(stopRecording, 600);
+}
+
+/* ---------- Recording ---------- */
+function pickMime() {
+  if (!window.MediaRecorder) return '';
+  const opts = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
+  return opts.find(m => { try { return MediaRecorder.isTypeSupported(m); } catch (e) { return false; } }) || '';
+}
+function startRecording() {
+  if (!window.MediaRecorder || !canvas.captureStream) { toast('This browser cannot record video. Try Chrome, Edge or Safari.'); return; }
+  audio.ensure();
+  rebuild();
+  const stream = canvas.captureStream(60);
+  if (audio.enabled && audio.recDest) audio.recDest.stream.getAudioTracks().forEach(tr => stream.addTrack(tr));
+  const mime = pickMime();
+  let rec;
+  try { rec = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: 8000000 } : undefined); }
+  catch (e) { toast('Recording could not start in this browser.'); return; }
+  const chunks = [];
+  rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+  rec.onstop = () => {
+    const type = rec.mimeType || mime || 'video/webm';
+    const blob = new Blob(chunks, { type });
+    const ext = type.includes('mp4') ? 'mp4' : 'webm';
+    const name = (app.scene.settings.name || 'simulation').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'simulation';
+    stream.getTracks().forEach(tr => { if (tr.kind === 'video') tr.stop(); });
+    if (blob.size) saveFile(`${name}-seed${app.scene.settings.seed}.${ext}`, blob); else toast('The recording came out empty.');
+  };
+  rec.start(250);
+  app.recording = rec;
+  $('recBtn').setAttribute('aria-pressed', 'true'); $('recLabel').textContent = 'Stop';
+  setPlaying(true);
+}
+function stopRecording() {
+  if (!app.recording) return;
+  const rec = app.recording; app.recording = null;
+  $('recBtn').setAttribute('aria-pressed', 'false'); $('recLabel').textContent = 'Record';
+  try { rec.stop(); } catch (e) {}
+}
+
+/* ---------- Toast ---------- */
+let toastTimer = null;
+function toast(msg, action) {
+  const el = $('toast');
+  el.innerHTML = ''; const span = document.createElement('span'); span.textContent = msg; el.appendChild(span);
+  if (action) { const b = document.createElement('button'); b.type = 'button'; b.textContent = action.label; b.onclick = () => { el.hidden = true; action.run(); }; el.appendChild(b); }
+  el.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { el.hidden = true; }, action ? 6000 : 3000);
+}
+
+/* ==========================================================================
+   Panel UI
+   ========================================================================== */
+function h(tag, attrs, ...kids) {
+  const el = document.createElement(tag);
+  if (attrs) for (const [k, v] of Object.entries(attrs)) {
+    if (v == null || v === false) continue;
+    if (k === 'class') el.className = v; else if (k === 'html') el.innerHTML = v;
+    else if (k.startsWith('on')) el.addEventListener(k.slice(2), v); else el.setAttribute(k, v === true ? '' : v);
+  }
+  for (const kid of kids.flat()) if (kid != null && kid !== false) el.append(kid.nodeType ? kid : document.createTextNode(String(kid)));
+  return el;
+}
+
+function fieldEl(def, obj, onChange, idPrefix) {
+  const id = `${idPrefix}-${def.k}`;
+  const wrap = h('div', { class: 'field' }, h('label', { for: id }, def.label));
+  const ctl = h('div', { class: 'ctl' });
+  const commit = v => { obj[def.k] = v; onChange(def.k, v); };
+  if (def.t === 'num') {
+    const range = h('input', { type: 'range', min: def.min, max: def.max, step: def.step, value: obj[def.k], 'aria-label': def.label, tabindex: -1 });
+    const num = h('input', { type: 'number', id, min: def.min, max: def.max, step: def.step, value: obj[def.k], 'data-k': def.k });
+    range.addEventListener('input', () => { num.value = range.value; commit(Number(range.value)); });
+    num.addEventListener('change', () => { let v = Number(num.value); if (!Number.isFinite(v)) v = obj[def.k]; num.value = v; range.value = v; commit(v); });
+    ctl.append(range, num);
+  } else if (def.t === 'sel') {
+    const sel = h('select', { id, 'data-k': def.k }, def.options.map(([v, l]) => h('option', { value: v, selected: String(obj[def.k]) === String(v) }, l)));
+    sel.addEventListener('change', () => { const o = def.options.find(([v]) => String(v) === sel.value); commit(typeof o[0] === 'number' ? Number(sel.value) : sel.value); });
+    ctl.append(sel);
+  } else if (def.t === 'bool') {
+    const cb = h('input', { type: 'checkbox', id, checked: !!obj[def.k], 'data-k': def.k });
+    cb.addEventListener('change', () => commit(cb.checked));
+    ctl.append(cb);
+  } else if (def.t === 'text') {
+    const tx = h('input', { type: 'text', id, value: obj[def.k] ?? '', 'data-k': def.k });
+    tx.addEventListener('input', () => commit(tx.value));
+    ctl.append(tx);
+  } else if (def.t === 'pal') {
+    const pal = app.scene.settings.palette, sw = h('div', { class: 'swatches', role: 'radiogroup', 'aria-label': def.label, id });
+    pal.forEach((col, i) => {
+      const b = h('button', { type: 'button', class: 'swatch', role: 'radio', 'aria-checked': obj[def.k] === i ? 'true' : 'false', 'aria-label': `${colorName(col)} (${i + 1})`, style: `background:${col}` });
+      b.addEventListener('click', () => { sw.querySelectorAll('.swatch').forEach(x => x.setAttribute('aria-checked', 'false')); b.setAttribute('aria-checked', 'true'); commit(i); });
+      sw.append(b);
+    });
+    ctl.append(sw);
+  }
+  wrap.append(ctl);
+  return wrap;
+}
+
+function setTab(tab) {
+  app.tab = tab; saveUi();
+  document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === tab ? 'true' : 'false'));
+  renderPanel();
+}
+
+function renderPanel() {
+  const body = $('panelBody');
+  body.innerHTML = '';
+  if (app.tab === 'templates') renderTemplates(body);
+  else if (app.tab === 'scene') renderScene(body);
+  else if (app.tab === 'parts') renderParts(body);
+  else renderSaved(body);
+}
+
+const thumbCache = new Map();
+function renderTemplates(body) {
+  body.append(h('div', null, h('h2', { class: 'section-title' }, 'Start from a template'), h('p', { class: 'hint' }, 'Pick one, then change anything in the Scene and Parts tabs.')));
+  const grid = h('div', { class: 'tpl-grid' });
+  for (const tpl of TEMPLATES) {
+    const cv = h('canvas', { width: 135, height: 240, 'aria-hidden': 'true' });
+    const card = h('button', { type: 'button', class: 'tpl' + (app.templateKey === tpl.key ? ' current' : ''), onclick: () => loadTemplate(tpl) }, cv, h('b', null, tpl.title), h('span', null, tpl.blurb));
+    grid.append(card);
+    requestAnimationFrame(() => drawThumb(cv, tpl));
+  }
+  body.append(grid);
+}
+function drawThumb(cv, tpl) {
+  const key = tpl.key;
+  let sim = thumbCache.get(key);
+  if (!sim) {
+    sim = new Sim(tpl.make());
+    sim.settings.caption = ''; sim.settings.counters = 'off';
+    for (let i = 0; i < 240 * 2.2 && !sim.ended; i++) sim.step();
+    thumbCache.set(key, sim);
+  }
+  const c = cv.getContext('2d');
+  drawScene(c, sim, { scale: 135 / WORLD_W, edit: false, overlay: false, fx: false, sceneParts: [] });
+}
+function loadTemplate(tpl) {
+  app.prevScene = { scene: clone(app.scene), templateKey: app.templateKey };
+  app.scene = tpl.make(); app.templateKey = tpl.key; app.selectedId = null; app.openId = null;
+  persist(); rebuild(); setPlaying(true); renderPanel();
+  toast(`Loaded ${tpl.title}.`, { label: 'Undo', run: () => { app.scene = app.prevScene.scene; app.templateKey = app.prevScene.templateKey; persist(); rebuild(false); renderPanel(); } });
+}
+
+function renderScene(body) {
+  const s = app.scene.settings;
+  const onChange = k => {
+    if (k === 'name') $('sceneName').textContent = s.name ? '· ' + s.name : '';
+    sceneChanged();
+  };
+  body.append(h('div', null, h('h2', { class: 'section-title' }, 'Scene settings'), h('p', { class: 'hint' }, 'World rules for the whole simulation. The seed decides every random bounce, so the same seed replays the same run.')));
+  const groups = [['Basics', ['name', 'caption', 'seed', 'theme']], ['Physics', ['gravity', 'ballBounce', 'drag', 'minSpeed', 'maxSpeed', 'ballRadius']], ['Ending', ['maxBalls', 'fillLimit', 'finale', 'battle']], ['On screen', ['counters', 'showLabels']]];
+  for (const [title, keys] of groups) {
+    const box = h('div', { class: 'fields' }, h('p', { class: 'eyebrow' }, title));
+    for (const k of keys) box.append(fieldEl(SETTINGS_FIELDS.find(f => f.k === k), s, onChange, 'set'));
+    body.append(box);
+  }
+  const palBox = h('div', { class: 'fields' }, h('p', { class: 'eyebrow' }, 'Colour order'), h('p', { class: 'hint' }, '"Next colour" moves one step along this row. Tap a colour to change it.'));
+  const sw = h('div', { class: 'swatches' });
+  s.palette.forEach((col, i) => {
+    const inp = h('input', { type: 'color', value: col, 'aria-label': `Colour ${i + 1}` });
+    inp.addEventListener('input', () => { s.palette[i] = inp.value; spriteCache.clear(); sceneChanged(); });
+    sw.append(h('label', { class: 'swatch', style: `background:${col}` }, inp));
+    inp.addEventListener('change', () => renderPanel());
+  });
+  palBox.append(sw, h('div', null, h('button', { type: 'button', class: 'btn small', onclick: () => { s.palette = DEFAULT_PALETTE.slice(); sceneChanged(); renderPanel(); } }, 'Reset colours')));
+  body.append(palBox);
+}
+
+function renderParts(body) {
+  body.append(h('div', null, h('h2', { class: 'section-title' }, 'Add a part'), h('p', { class: 'hint' }, 'New parts appear in the middle. Use Edit mode to drag them into place.')));
+  const add = h('div', { class: 'add-grid' });
+  for (const [type, T] of Object.entries(PART_TYPES)) add.append(h('button', { type: 'button', class: 'btn small', title: T.desc, html: glyph(T.glyph) + `<span>${T.label}</span>`, onclick: () => addPart(type) }));
+  body.append(add, h('hr'));
+  body.append(h('h2', { class: 'section-title' }, `Parts in this scene (${app.scene.parts.length})`));
+  if (!app.scene.parts.length) { body.append(h('div', { class: 'empty' }, 'No parts yet. Add a spawner and a wall to get started.')); return; }
+  const list = h('div', { class: 'part-list' });
+  for (const cfg of app.scene.parts) list.append(partCard(cfg));
+  body.append(list);
+}
+function partCard(cfg) {
+  const T = PART_TYPES[cfg.type], open = app.openId === cfg.id;
+  const summary = h('span', null, T.summary(cfg));
+  const card = h('div', { class: 'part' + (open ? ' open' : '') + (app.selectedId === cfg.id ? ' selected' : ''), id: 'part-' + cfg.id });
+  const head = h('button', { type: 'button', class: 'part-head', 'aria-expanded': open ? 'true' : 'false', onclick: () => { app.openId = open ? null : cfg.id; app.selectedId = app.openId; renderPanel(); render(); } },
+    h('span', { class: 'glyph', html: glyph(T.glyph) }), h('span', { class: 'txt' }, h('b', null, T.label), summary), h('span', { class: 'chev', html: ICONS.chev }));
+  card.append(head);
+  if (open) {
+    const bodyEl = h('div', { class: 'part-body' });
+    bodyEl.append(h('p', { class: 'hint' }, T.desc));
+    const fields = h('div', { class: 'fields' });
+    for (const def of T.fields) fields.append(fieldEl(def, cfg, () => { summary.textContent = T.summary(cfg); sceneChanged(); }, 'p-' + cfg.id));
+    bodyEl.append(fields, h('div', { class: 'part-actions' },
+      h('button', { type: 'button', class: 'btn small', onclick: () => movePart(cfg, -1) }, 'Move up'),
+      h('button', { type: 'button', class: 'btn small', onclick: () => movePart(cfg, 1) }, 'Move down'),
+      h('button', { type: 'button', class: 'btn small', onclick: () => duplicatePart(cfg) }, 'Duplicate'),
+      h('button', { type: 'button', class: 'btn small danger', onclick: () => deletePart(cfg) }, 'Delete')));
+    card.append(bodyEl);
+  }
+  return card;
+}
+function addPart(type) {
+  const p = part(type);
+  app.scene.parts.push(p); app.openId = p.id; app.selectedId = p.id; app.templateKey = null;
+  sceneChanged(); renderPanel();
+  requestAnimationFrame(() => { const el = $('part-' + p.id); if (el) el.scrollIntoView({ block: 'nearest' }); });
+}
+function movePart(cfg, dir) {
+  const ps = app.scene.parts, i = ps.indexOf(cfg), j = i + dir;
+  if (j < 0 || j >= ps.length) return;
+  ps.splice(i, 1); ps.splice(j, 0, cfg); sceneChanged(); renderPanel();
+}
+function duplicatePart(cfg) {
+  const p = Object.assign(clone(cfg), { id: uid() });
+  for (const k of ['x', 'x1', 'x2', 'tx']) if (typeof p[k] === 'number') p[k] += 20;
+  for (const k of ['y', 'y1', 'y2', 'ty']) if (typeof p[k] === 'number') p[k] += 20;
+  const ps = app.scene.parts; ps.splice(ps.indexOf(cfg) + 1, 0, p); app.openId = p.id; app.selectedId = p.id;
+  sceneChanged(); renderPanel();
+}
+function deletePart(cfg) {
+  const ps = app.scene.parts, i = ps.indexOf(cfg);
+  ps.splice(i, 1); if (app.selectedId === cfg.id) app.selectedId = null;
+  sceneChanged(); renderPanel();
+  toast(`Deleted ${PART_TYPES[cfg.type].label.toLowerCase()}.`, { label: 'Undo', run: () => { ps.splice(i, 0, cfg); sceneChanged(); renderPanel(); } });
+}
+
+function renderSaved(body) {
+  body.append(h('div', null, h('h2', { class: 'section-title' }, 'Save this setup'), h('p', { class: 'hint' }, 'Saves stay in this browser. Export a file to keep a copy or share it.')));
+  const nameIn = h('input', { type: 'text', id: 'saveName', value: app.scene.settings.name || '', 'aria-label': 'Save name' });
+  body.append(h('div', { class: 'save-row' }, nameIn, h('button', { type: 'button', class: 'btn primary', onclick: () => {
+    const saves = store.get(K_SAVES, []);
+    const name = nameIn.value.trim() || app.scene.settings.name || 'Untitled';
+    app.scene.settings.name = name;
+    const existing = saves.find(s => s.name === name);
+    if (existing) { existing.scene = clone(app.scene); existing.savedAt = Date.now(); } else saves.unshift({ id: uid(), name, savedAt: Date.now(), scene: clone(app.scene) });
+    if (store.set(K_SAVES, saves)) toast(existing ? `Updated "${name}".` : `Saved "${name}".`); else toast('This browser blocked saving. Export a file instead.');
+    persist(); rebuild(); renderPanel();
+  } }, 'Save')));
+  const saves = store.get(K_SAVES, []);
+  const list = h('div', { class: 'saved-list' });
+  if (!saves.length) list.append(h('div', { class: 'empty' }, 'Nothing saved yet. Your saves will show up here.'));
+  for (const s of saves) {
+    list.append(h('div', { class: 'saved' },
+      h('div', { class: 'txt' }, h('b', null, s.name), h('span', null, `${s.scene.parts.length} parts · ${new Date(s.savedAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}`)),
+      h('button', { type: 'button', class: 'btn small', onclick: () => { try { app.scene = normalizeScene(clone(s.scene)); app.templateKey = null; persist(); rebuild(false); renderPanel(); toast(`Loaded "${s.name}".`); } catch (e) { toast(e.message); } } }, 'Load'),
+      h('button', { type: 'button', class: 'btn small danger', 'aria-label': `Delete ${s.name}`, onclick: () => {
+        const all = store.get(K_SAVES, []), idx = all.findIndex(x => x.id === s.id); if (idx < 0) return;
+        const [gone] = all.splice(idx, 1); store.set(K_SAVES, all); renderPanel();
+        toast(`Deleted "${gone.name}".`, { label: 'Undo', run: () => { const a = store.get(K_SAVES, []); a.splice(idx, 0, gone); store.set(K_SAVES, a); renderPanel(); } });
+      } }, 'Delete')));
+  }
+  body.append(list, h('hr'));
+  body.append(h('div', null, h('h2', { class: 'section-title' }, 'Export and import'), h('p', { class: 'hint' }, 'A setup is a small JSON file. Share it and anyone can load it here.')));
+  const json = () => JSON.stringify(app.scene, null, 2);
+  const fname = () => ((app.scene.settings.name || 'simulation').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'simulation') + '.json';
+  const fileIn = h('input', { type: 'file', accept: '.json,application/json', hidden: true, id: 'importFile' });
+  fileIn.addEventListener('change', () => {
+    const f = fileIn.files && fileIn.files[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = () => importText(String(r.result));
+    r.readAsText(f);
+    fileIn.value = '';
+  });
+  body.append(h('div', { class: 'part-actions' },
+    h('button', { type: 'button', class: 'btn small', onclick: () => saveFile(fname(), json()) }, 'Export file'),
+    h('button', { type: 'button', class: 'btn small', onclick: async () => { try { await navigator.clipboard.writeText(json()); toast('Copied the setup JSON.'); } catch (e) { pasteBox.value = json(); pasteBox.select(); toast('Copy blocked here. The JSON is selected below, copy it from there.'); } } }, 'Copy JSON'),
+    h('button', { type: 'button', class: 'btn small', onclick: () => fileIn.click() }, 'Import file'), fileIn));
+  const pasteBox = h('textarea', { rows: 4, id: 'pasteJson', placeholder: 'Or paste setup JSON here', 'aria-label': 'Paste setup JSON' });
+  body.append(pasteBox, h('div', null, h('button', { type: 'button', class: 'btn small', onclick: () => importText(pasteBox.value) }, 'Load pasted JSON')));
+}
+function importText(text) {
+  try {
+    const sc = normalizeScene(JSON.parse(text));
+    app.prevScene = { scene: clone(app.scene), templateKey: app.templateKey };
+    app.scene = sc; app.templateKey = null; app.selectedId = null; app.openId = null;
+    persist(); rebuild(false); renderPanel();
+    toast(`Imported "${sc.settings.name}".`, { label: 'Undo', run: () => { app.scene = app.prevScene.scene; app.templateKey = app.prevScene.templateKey; persist(); rebuild(false); renderPanel(); } });
+  } catch (e) { toast(e instanceof SyntaxError ? 'That is not valid JSON. Check that you copied the whole setup.' : e.message); }
+}
+
+/* ==========================================================================
+   Canvas editing
+   ========================================================================== */
+let drag = null;
+function toWorld(ev) {
+  const r = canvas.getBoundingClientRect();
+  return { x: (ev.clientX - r.left) / r.width * WORLD_W, y: (ev.clientY - r.top) / r.height * WORLD_H, perPx: WORLD_W / r.width };
+}
+function distToSeg(px, py, ax, ay, bx, by) {
+  const dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy; let t = L ? ((px - ax) * dx + (py - ay) * dy) / L : 0; t = clamp(t, 0, 1);
+  return Math.hypot(px - ax - dx * t, py - ay - dy * t);
+}
+function hitPart(cfg, x, y) {
+  switch (cfg.type) {
+    case 'wall': case 'conveyor': case 'gate': return distToSeg(x, y, cfg.x1, cfg.y1, cfg.x2, cfg.y2) < 12;
+    case 'container': return Math.abs(Math.hypot(x - cfg.x, y - cfg.y) - cfg.radius) < 12;
+    case 'zone': return cfg.shape === 'rect' ? Math.abs(x - cfg.x) < cfg.w / 2 && Math.abs(y - cfg.y) < cfg.h / 2 : Math.abs(Math.hypot(x - cfg.x, y - cfg.y) - cfg.r) < 12 || Math.hypot(x - cfg.x, y - cfg.y) < Math.min(cfg.r, 30);
+    case 'force': return Math.abs(x - cfg.x) < cfg.w / 2 && Math.abs(y - cfg.y) < cfg.h / 2;
+    case 'slots': return Math.abs(x - cfg.x) < cfg.width / 2 && Math.abs(y - cfg.y) < cfg.height / 2;
+    case 'spiral': return Math.hypot(x - cfg.x, y - cfg.y) < cfg.innerR + cfg.pitch * cfg.turns;
+    case 'crusher': return Math.abs(x - cfg.x) < cfg.boxW / 2 + 20 && Math.abs(y - cfg.y) < cfg.boxH / 2 + 12;
+    default: return Math.hypot(x - cfg.x, y - cfg.y) < 26;
+  }
+}
+canvas.addEventListener('pointerdown', ev => {
+  if (!app.editing) return;
+  const p = toWorld(ev), tol = Math.max(10, 14 * p.perPx);
+  let best = null, bestD = tol;
+  // when handles overlap, the selected part wins, then the part drawn on top
+  const order = app.scene.parts.slice().sort((a, b) => (a.id === app.selectedId) - (b.id === app.selectedId));
+  for (const cfg of order) for (const hd of partHandles(cfg)) {
+    const d = Math.hypot(hd.x - p.x, hd.y - p.y);
+    if (d <= bestD) { bestD = d; best = { cfg, hd }; }
+  }
+  if (!best) {
+    const hit = app.scene.parts.slice().reverse().find(cfg => hitPart(cfg, p.x, p.y));
+    if (hit) best = { cfg: hit, hd: partHandles(hit)[partHandles(hit).length - 1].kind === 'mid' ? partHandles(hit).find(x => x.kind === 'mid') : partHandles(hit)[0] };
+  }
+  if (!best) { app.selectedId = null; render(); if (app.tab === 'parts') renderPanel(); return; }
+  app.selectedId = best.cfg.id; app.openId = best.cfg.id;
+  drag = { cfg: best.cfg, hd: best.hd, sx: p.x, sy: p.y, orig: clone(best.cfg), moved: false };
+  canvas.setPointerCapture(ev.pointerId);
+  if (app.tab !== 'parts') setTab('parts'); else renderPanel();
+  render();
+});
+canvas.addEventListener('pointermove', ev => {
+  if (!drag) return;
+  const p = toWorld(ev), dx = Math.round(p.x - drag.sx), dy = Math.round(p.y - drag.sy), c = drag.cfg, o = drag.orig;
+  if (!drag.moved && Math.abs(dx) + Math.abs(dy) < 2) return;
+  drag.moved = true;
+  if (drag.hd.kind === 'mid') { c.x1 = o.x1 + dx; c.y1 = o.y1 + dy; c.x2 = o.x2 + dx; c.y2 = o.y2 + dy; }
+  else if (drag.hd.kind === 'main' && (c.type === 'slots' || c.type === 'zone') && drag.hd.kx === 'x') { c.x = o.x + dx; c.y = o.y + dy; }
+  else { c[drag.hd.kx] = o[drag.hd.kx] + dx; c[drag.hd.ky] = o[drag.hd.ky] + dy; }
+  app.templateKey = null;
+  queueRebuild();
+  syncFieldValues(c);
+});
+const endDrag = () => { if (drag) { if (drag.moved) { persist(); const el = $('part-' + drag.cfg.id); if (el) { const s = el.querySelector('.txt span'); if (s) s.textContent = PART_TYPES[drag.cfg.type].summary(drag.cfg); } } drag = null; } };
+canvas.addEventListener('pointerup', endDrag);
+canvas.addEventListener('pointercancel', endDrag);
+function syncFieldValues(cfg) {
+  const card = $('part-' + cfg.id); if (!card) return;
+  card.querySelectorAll('input[type="number"][data-k]').forEach(inp => {
+    const v = cfg[inp.dataset.k]; if (inp.value !== String(v)) { inp.value = v; const r = inp.previousElementSibling; if (r && r.type === 'range') r.value = v; }
+  });
+}
+
+/* ==========================================================================
+   Wiring
+   ========================================================================== */
+function fitStage() {
+  const wrap = $('stageWrap'), box = $('stageBox');
+  const mobile = window.matchMedia('(max-width: 860px)').matches;
+  const r = wrap.getBoundingClientRect();
+  let w = r.width, hgt = mobile ? Math.min(window.innerHeight * 0.74, w * 16 / 9) : r.height;
+  if (w * 16 / 9 > hgt) w = hgt * 9 / 16; else hgt = w * 16 / 9;
+  box.style.width = Math.floor(w) + 'px'; box.style.height = Math.floor(hgt) + 'px';
+}
+window.addEventListener('resize', fitStage);
+
+$('playBtn').addEventListener('click', () => setPlaying(!app.playing));
+$('restartBtn').innerHTML = ICONS.restart;
+$('restartBtn').addEventListener('click', () => { rebuild(); if (!app.editing) setPlaying(true); });
+$('speedSel').addEventListener('change', e => { app.speed = Number(e.target.value); });
+$('editBtn').innerHTML = ICONS.edit + '<span>Edit</span>';
+$('editBtn').addEventListener('click', () => setEditing(!app.editing));
+$('recBtn').addEventListener('click', () => { if (app.recording) stopRecording(); else startRecording(); });
+function paintSound() { $('soundBtn').innerHTML = audio.enabled ? ICONS.sound : ICONS.mute; $('soundBtn').setAttribute('aria-pressed', audio.enabled ? 'true' : 'false'); }
+$('soundBtn').addEventListener('click', () => { audio.enabled = !audio.enabled; if (audio.enabled) audio.ensure(); paintSound(); });
+$('seedBtn').addEventListener('click', () => {
+  app.scene.settings.seed = 1 + Math.floor(Math.random() * 99999);
+  persist(); rebuild(); if (!app.editing) setPlaying(true);
+  if (app.tab === 'scene') renderPanel();
+});
+$('uiTheme').addEventListener('click', () => {
+  const root = document.documentElement, cur = root.getAttribute('data-theme');
+  const dark = cur ? cur === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+  root.setAttribute('data-theme', dark ? 'light' : 'dark'); saveUi();
+});
+document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => setTab(b.dataset.tab)));
+document.addEventListener('keydown', ev => {
+  if (ev.target.closest('input, textarea, select') || ev.metaKey || ev.ctrlKey || ev.altKey) return;
+  if (ev.code === 'Space' && !ev.target.closest('button')) { ev.preventDefault(); setPlaying(!app.playing); }
+  else if (ev.key === 'r' || ev.key === 'R') { rebuild(); if (!app.editing) setPlaying(true); }
+  else if (ev.key === 'e' || ev.key === 'E') setEditing(!app.editing);
+});
+
+loadInitial();
+paintSound();
+fitStage();
+rebuild(false);
+setTab(app.tab);
+setPlaying(false);
+requestAnimationFrame(frame);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { thumbCache.clear(); if (app.tab === 'templates') renderPanel(); render(); });
+
+window.SimLab = { Sim, TEMPLATES, app, PART_TYPES, normalizeScene };
+</script>
